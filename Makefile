@@ -1,7 +1,8 @@
-.PHONY: install test lint docker-build docker-up docker-run docker-smoke docker-down seed serve
+.PHONY: install test lint docker-build docker-up docker-run docker-smoke docker-down docker-setup seed serve
 
 IMAGE_NAME := unhexx-classifier
 IMAGE_TAG := 0.3.0
+DOCKER := ./scripts/docker-wrap.sh
 
 install:
 	pip install -e ".[dev]"
@@ -19,11 +20,17 @@ seed:
 serve:
 	unhexx-classifier serve --host 0.0.0.0 --port 8000
 
+docker-setup:
+	@chmod +x scripts/docker-wrap.sh scripts/setup-docker-access.sh
+	@./scripts/setup-docker-access.sh
+
 docker-build:
-	docker build -t $(IMAGE_NAME):$(IMAGE_TAG) -t $(IMAGE_NAME):latest .
+	@chmod +x scripts/docker-wrap.sh
+	$(DOCKER) build -t $(IMAGE_NAME):$(IMAGE_TAG) -t $(IMAGE_NAME):latest .
 
 docker-up:
-	docker compose up --build -d
+	@chmod +x scripts/docker-wrap.sh
+	$(DOCKER) compose up --build -d
 
 docker-run: docker-up docker-smoke
 
@@ -46,4 +53,5 @@ docker-smoke:
 		| python -m json.tool
 
 docker-down:
-	docker compose down
+	@chmod +x scripts/docker-wrap.sh
+	$(DOCKER) compose down

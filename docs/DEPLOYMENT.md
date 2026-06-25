@@ -26,6 +26,19 @@ curl -o /dev/null -w "%{http_code}" http://localhost:8000/ui
 
 ## Docker (преднастроенный образ)
 
+### Доступ к Docker (Linux)
+
+Если `permission denied` на `/var/run/docker.sock`:
+
+```bash
+make docker-setup
+# или вручную:
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+После этого `docker ps` должен работать без sudo.
+
 ### Сборка образа
 
 ```bash
