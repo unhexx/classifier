@@ -71,13 +71,18 @@ curl -X POST http://localhost:8000/api/v1/feedback/1/apply
 curl -X POST http://localhost:8000/api/v1/feedback/export
 ```
 
-## Docker
+## Docker (преднастроенный образ)
 
 ```bash
-docker compose up --build -d
-curl http://localhost:8000/health
-open http://localhost:8000/ui
+make docker-build          # собрать unhexx-classifier:0.3.0
+make docker-up             # запустить с volume
+make docker-smoke          # проверить /health, /ui, classify
+
+# Интерфейс контролёра: http://localhost:8000/ui
+# Swagger:               http://localhost:8000/docs
 ```
+
+Данные (SQLite, журналы, дообучение ПД) сохраняются в volume `classifier-data`.
 
 ## Тесты
 

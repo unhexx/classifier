@@ -1,14 +1,16 @@
-version: "3.8"
-
 services:
   classifier:
     build: .
-    image: unhexx-classifier:latest
+    image: unhexx-classifier:0.3.0
     container_name: unhexx-classifier
     ports:
       - "8000:8000"
     environment:
       - DATABASE_URL=sqlite:///./data/classifier.db
+      - ENABLE_PD_CLEANING=true
+      - ENABLE_PD_CLEANING_LOG=true
+      - ENABLE_CLASSIFICATION_LOGGING=true
+      - PD_MODEL_VERSION=pd-cpu-v1
       - LOG_LEVEL=INFO
     volumes:
       - classifier-data:/app/data
@@ -18,6 +20,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+      start_period: 15s
 
 volumes:
   classifier-data:

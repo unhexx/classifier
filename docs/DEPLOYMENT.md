@@ -24,15 +24,67 @@ curl -o /dev/null -w "%{http_code}" http://localhost:8000/ui
 # → 200
 ```
 
-## Docker
+## Docker (преднастроенный образ)
+
+### Сборка образа
 
 ```bash
+make docker-build
+# или
+docker build -t unhexx-classifier:0.3.0 -t unhexx-classifier:latest .
+```
+
+Образ включает:
+- Python 3.11 + все зависимости
+- 4 справочника неисправностей (JSON seeds)
+- Локальную CPU-модель очистки ПД (`pd-cpu-v1`)
+- Интерфейс контролёра (`/ui`)
+- Entrypoint с автоматической инициализацией БД при старте
+
+### Запуск
+
+```bash
+make docker-up
+# или
 docker compose up --build -d
 ```
 
-Интерфейс контролёра: http://localhost:8000/ui
+### Проверка
 
-Volume `classifier-data` хранит SQLite с журналами и дообученными правилами.
+```bash
+make docker-smoke
+```
+
+| URL | Назначение |
+|-----|------------|
+| http://localhost:8000/ui | Интерфейс контролёра |
+| http://localhost:8000/docs | Swagger API |
+| http://localhost:8000/health | Статус сервиса |
+
+### Персистентность
+
+Volume `classifier-data` монтируется в `/app/data` и сохраняет:
+- SQLite-базу (`classifier.db`)
+- Журналы классификаций и очистки ПД
+- Дообученные правила и экспорт обратной связи
+
+```bash
+# Остановка (данные сохраняются)
+make docker-down
+
+# Полный сброс данных
+docker compose down -v
+```
+
+### Запуск без compose
+
+```bash
+docker run -d \
+  --name unhexx-classifier \
+  -p 8000:8000 \
+  -v classifier-data:/app/data \
+  unhexx-classifier:0.3.0
+```
 
 ## Переменные окружения
 
