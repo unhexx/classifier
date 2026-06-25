@@ -11,16 +11,16 @@
 ```bash
 pip install -e ".[dev]"
 make seed
-unhexx-classifier serve --host 0.0.0.0 --port 8000
+unhexx-classifier serve --host 0.0.0.0 --port 8123
 ```
 
 Проверка:
 
 ```bash
-curl http://localhost:8000/health
+curl http://localhost:8123/health
 # → pd_cleaning_enabled: true, pd_model_version: pd-cpu-v1
 
-curl -o /dev/null -w "%{http_code}" http://localhost:8000/ui
+curl -o /dev/null -w "%{http_code}" http://localhost:8123/ui
 # → 200
 ```
 
@@ -70,9 +70,9 @@ make docker-smoke
 
 | URL | Назначение |
 |-----|------------|
-| http://localhost:8000/ui | Интерфейс контролёра |
-| http://localhost:8000/docs | Swagger API |
-| http://localhost:8000/health | Статус сервиса |
+| http://localhost:8123/ui | Интерфейс контролёра |
+| http://localhost:8123/docs | Swagger API |
+| http://localhost:8123/health | Статус сервиса |
 
 ### Персистентность
 
@@ -94,7 +94,8 @@ docker compose down -v
 ```bash
 docker run -d \
   --name unhexx-classifier \
-  -p 8000:8000 \
+  -p 8123:8123 \
+  -e PORT=8123 \
   -v classifier-data:/app/data \
   unhexx-classifier:0.3.0
 ```
@@ -154,7 +155,7 @@ User=classifier
 WorkingDirectory=/opt/unhexx-classifier
 Environment=ENABLE_PD_CLEANING=true
 Environment=DATABASE_URL=sqlite:////opt/unhexx-classifier/data/classifier.db
-ExecStart=/opt/unhexx-classifier/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+ExecStart=/opt/unhexx-classifier/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8123
 Restart=on-failure
 
 [Install]

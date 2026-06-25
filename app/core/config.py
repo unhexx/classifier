@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     )
 
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    port: int = 8123
 
 
 settings = Settings()

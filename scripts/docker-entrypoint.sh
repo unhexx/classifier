@@ -2,6 +2,8 @@
 # Инициализация БД и справочников перед запуском uvicorn
 set -e
 
+PORT="${PORT:-8123}"
+
 echo "Инициализация сервиса..."
 python -c "
 from app.db.session import init_db, SessionLocal
@@ -17,5 +19,5 @@ with SessionLocal() as db:
         print('Добавлено:', added)
 "
 
-echo "Запуск uvicorn..."
-exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+echo "Запуск uvicorn на порту ${PORT}..."
+exec uvicorn app.main:app --host 0.0.0.0 --port "${PORT}"

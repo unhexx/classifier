@@ -23,7 +23,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     ENABLE_PD_CLEANING_LOG=true \
     ENABLE_CLASSIFICATION_LOGGING=true \
     PD_MODEL_VERSION=pd-cpu-v1 \
-    LOG_LEVEL=INFO
+    LOG_LEVEL=INFO \
+    PORT=8123
 
 WORKDIR /app
 
@@ -41,9 +42,9 @@ RUN mkdir -p /app/data/training \
 
 USER classifier
 
-EXPOSE 8000
+EXPOSE 8123
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=15s \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)"
+    CMD python -c "import os,urllib.request; urllib.request.urlopen(f'http://localhost:{os.environ.get(\"PORT\",\"8123\")}/health', timeout=2)"
 
 ENTRYPOINT ["/app/scripts/docker-entrypoint.sh"]

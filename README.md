@@ -24,16 +24,16 @@ pip install -e ".[dev]"
 unhexx-classifier serve
 
 # Интерфейс контролёра
-# → http://localhost:8000/ui
+# → http://localhost:8123/ui
 
 # API-документация
-# → http://localhost:8000/docs
+# → http://localhost:8123/docs
 ```
 
 ### Пример: классификация с очисткой ПД
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/classify \
+curl -X POST http://localhost:8123/api/v1/classify \
   -H "Content-Type: application/json" \
   -d '{
     "catalog": "servers",
@@ -46,7 +46,7 @@ curl -X POST http://localhost:8000/api/v1/classify \
 ### Пример: предпросмотр очистки ПД
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/pd/clean \
+curl -X POST http://localhost:8123/api/v1/pd/clean \
   -H "Content-Type: application/json" \
   -d '{"text": "Петров П.П., email admin@corp.ru, диск не виден"}'
 ```
@@ -54,7 +54,7 @@ curl -X POST http://localhost:8000/api/v1/pd/clean \
 ### Пример: обратная связь контролёра
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/feedback \
+curl -X POST http://localhost:8123/api/v1/feedback \
   -H "Content-Type: application/json" \
   -d '{
     "original_text": "Сидоров А.А. жалуется на перегрев",
@@ -65,10 +65,10 @@ curl -X POST http://localhost:8000/api/v1/feedback \
   }'
 
 # Применить дообучение
-curl -X POST http://localhost:8000/api/v1/feedback/1/apply
+curl -X POST http://localhost:8123/api/v1/feedback/1/apply
 
 # Экспорт для переобучения
-curl -X POST http://localhost:8000/api/v1/feedback/export
+curl -X POST http://localhost:8123/api/v1/feedback/export
 ```
 
 ## Docker (преднастроенный образ)
@@ -78,11 +78,13 @@ make docker-build          # собрать unhexx-classifier:0.3.0
 make docker-up             # запустить с volume
 make docker-smoke          # проверить /health, /ui, classify
 
-# Интерфейс контролёра: http://localhost:8000/ui
-# Swagger:               http://localhost:8000/docs
+# Интерфейс контролёра: http://localhost:8123/ui
+# Swagger:               http://localhost:8123/docs
 ```
 
 Данные (SQLite, журналы, дообучение ПД) сохраняются в volume `classifier-data`.
+
+Порт по умолчанию: **8123** (настраивается через `PORT=... make docker-up`).
 
 ## Тесты
 

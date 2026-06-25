@@ -46,10 +46,12 @@ def cmd_classify(args: argparse.Namespace) -> None:
 
 
 def cmd_serve(args: argparse.Namespace) -> None:
+    from app.core.config import settings
+
     uvicorn.run(
         "app.main:app",
         host=args.host,
-        port=args.port,
+        port=args.port or settings.port,
         reload=args.reload,
         log_level="info",
     )
@@ -101,7 +103,7 @@ def main() -> None:
 
     p_serve = subparsers.add_parser("serve", help="Запустить HTTP-сервис")
     p_serve.add_argument("--host", default="127.0.0.1")
-    p_serve.add_argument("--port", type=int, default=8000)
+    p_serve.add_argument("--port", type=int, default=None)
     p_serve.add_argument("--reload", action="store_true")
     p_serve.set_defaults(func=cmd_serve)
 

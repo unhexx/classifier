@@ -46,4 +46,4 @@ python scripts/seed.py
 
 1. Создать `<name>.json` по схеме выше
 2. Запустить `make seed` или перезапустить сервис
-3. Проверить: `curl http://localhost:8000/api/v1/catalogs`
+3. Проверить: `curl http://localhost:8123/api/v1/catalogs`

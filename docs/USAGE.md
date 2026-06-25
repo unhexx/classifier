@@ -21,7 +21,7 @@ pip install -e ".[dev]"
 
 ## Интерфейс контролёра
 
-Откройте http://localhost:8000/ui после запуска сервиса.
+Откройте http://localhost:8123/ui после запуска сервиса.
 
 | Вкладка | Функция |
 |---------|---------|
@@ -37,7 +37,7 @@ pip install -e ".[dev]"
 unhexx-classifier classify -c servers "Петров И.И. +79991234567 сервер не включается"
 
 # Запуск сервиса
-unhexx-classifier serve --host 0.0.0.0 --port 8000
+unhexx-classifier serve --host 0.0.0.0 --port 8123
 ```
 
 ## REST API
@@ -45,7 +45,7 @@ unhexx-classifier serve --host 0.0.0.0 --port 8000
 ### 1. Предпросмотр очистки ПД
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/pd/clean \
+curl -X POST http://localhost:8123/api/v1/pd/clean \
   -H "Content-Type: application/json" \
   -d '{"text": "Иванов Иван, ivan@test.ru, +7-916-123-45-67 — raid degraded"}'
 ```
@@ -67,7 +67,7 @@ curl -X POST http://localhost:8000/api/v1/pd/clean \
 ### 2. Классификация (очистка + скоринг)
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/classify \
+curl -X POST http://localhost:8123/api/v1/classify \
   -H "Content-Type: application/json" \
   -d '{
     "catalog": "servers",
@@ -91,7 +91,7 @@ curl -X POST http://localhost:8000/api/v1/classify \
 Контролёр обнаружил, что модель **пропустила** фрагмент ПД:
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/feedback \
+curl -X POST http://localhost:8123/api/v1/feedback \
   -H "Content-Type: application/json" \
   -d '{
     "original_text": "Заявка от Козлов В.В.",
@@ -106,7 +106,7 @@ curl -X POST http://localhost:8000/api/v1/feedback \
 ### 4. Применение дообучения
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/feedback/1/apply
+curl -X POST http://localhost:8123/api/v1/feedback/1/apply
 ```
 
 Создаёт новое правило в `learned_pd_patterns`, которое модель использует при следующей очистке.
@@ -114,7 +114,7 @@ curl -X POST http://localhost:8000/api/v1/feedback/1/apply
 ### 5. Экспорт для переобучения
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/feedback/export
+curl -X POST http://localhost:8123/api/v1/feedback/export
 ```
 
 Сохраняет `data/training/pd_feedback.jsonl`.
@@ -122,7 +122,7 @@ curl -X POST http://localhost:8000/api/v1/feedback/export
 ### 6. Конфигурация
 
 ```bash
-curl http://localhost:8000/api/v1/config
+curl http://localhost:8123/api/v1/config
 ```
 
 ## Типы распознаваемых ПД
