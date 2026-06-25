@@ -1,16 +1,18 @@
 # unhexx-classifier
 
-**Унифицированный сервис классификации типовых неисправностей**
+**Унифицированный сервис классификации с предварительной очисткой контекста от персональных данных (ПД) локальной CPU-моделью, с интерфейсом контролёра для проверки очистки и дообучения модели на исправлениях.**
 
-Полностью локальный сервис «из коробки». Получает контекст проблемы и имя справочника, возвращает ранжированный список типовых неисправностей с оценкой уверенности.
+Сервис принимает текстовый контекст (описание проблемы, симптомы), **автоматически удаляет персональные данные** с помощью локальной модели, выполняет **классификацию по справочнику типовых неисправностей** и возвращает ранжированный результат. Контролёр через веб-интерфейс проверяет качество очистки ПД и передаёт исправления для **дообучения модели**.
 
-## Возможности
+## Ключевые возможности
 
-- 4 справочника: `servers` (28), `network` (25), `automotive` (14), `industrial` (14)
-- Гибридный скорер: keyword + fuzzy + trigram
-- REST API (FastAPI + Swagger), CLI, Python API
-- Журнал классификаций и Admin CRUD
-- Docker / docker-compose, SQLite, русскоязычные данные
+| Компонент | Описание |
+|-----------|----------|
+| **Очистка ПД** | Локальная CPU-модель (`pd-cpu-v1`): email, телефон, ФИО, паспорт, СНИЛС, ИНН, IP, карты, адреса |
+| **Классификация** | 4 справочника (81 неисправность), гибридный скорер keyword + fuzzy + trigram |
+| **Интерфейс контролёра** | `/ui` — предпросмотр очистки, классификация, обратная связь, экспорт для дообучения |
+| **Дообучение** | Контролёр сообщает об ошибках → правила применяются к модели → экспорт JSONL |
+| **Развёртывание** | Полностью локально: pip / Docker, без облачных вызовов |
 
 ## Быстрый старт
 
@@ -18,17 +20,55 @@
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 
-# Классификация через CLI
-unhexx-classifier classify --catalog servers "сервер не включается, красный индикатор psu"
-
-# Запуск HTTP-сервиса
+# Запуск сервиса
 unhexx-classifier serve
-# Swagger: http://localhost:8000/docs
 
-# Через API
+# Интерфейс контролёра
+# → http://localhost:8000/ui
+
+# API-документация
+# → http://localhost:8000/docs
+```
+
+### Пример: классификация с очисткой ПД
+
+```bash
 curl -X POST http://localhost:8000/api/v1/classify \
   -H "Content-Type: application/json" \
-  -d '{"catalog":"network","context":"link down на порту, нет линка"}'
+  -d '{
+    "catalog": "servers",
+    "context": "Иванов И.И., +79991234567 — сервер не включается, красный psu"
+  }'
+```
+
+Ответ содержит `original_context`, `context` (очищенный), `pd_entities` и `matches`.
+
+### Пример: предпросмотр очистки ПД
+
+```bash
+curl -X POST http://localhost:8000/api/v1/pd/clean \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Петров П.П., email admin@corp.ru, диск не виден"}'
+```
+
+### Пример: обратная связь контролёра
+
+```bash
+curl -X POST http://localhost:8000/api/v1/feedback \
+  -H "Content-Type: application/json" \
+  -d '{
+    "original_text": "Сидоров А.А. жалуется на перегрев",
+    "model_output": "Сидоров А.А. жалуется на перегрев",
+    "corrected_text": "[FIO] жалуется на перегрев",
+    "entity_type": "fio",
+    "missed_fragment": "Сидоров А.А."
+  }'
+
+# Применить дообучение
+curl -X POST http://localhost:8000/api/v1/feedback/1/apply
+
+# Экспорт для переобучения
+curl -X POST http://localhost:8000/api/v1/feedback/export
 ```
 
 ## Docker
@@ -36,34 +76,35 @@ curl -X POST http://localhost:8000/api/v1/classify \
 ```bash
 docker compose up --build -d
 curl http://localhost:8000/health
+open http://localhost:8000/ui
 ```
 
 ## Тесты
 
 ```bash
 make test
-# или
-pytest --cov=app --cov-report=term-missing
 ```
+
+39+ тестов, включая очистку ПД, обратную связь и дообучение.
 
 ## Документация
 
 - [Руководство по использованию](docs/USAGE.md)
 - [Архитектура](docs/ARCHITECTURE.md)
 - [Развёртывание](docs/DEPLOYMENT.md)
-- [Справочники данных](data/catalogs/README.md)
-- [Changelog](CHANGELOG.md)
+- [Справочники неисправностей](data/catalogs/README.md)
 
 ## API
 
-| Метод | Путь | Описание |
-|-------|------|----------|
-| POST | `/api/v1/classify` | Классификация |
-| GET | `/api/v1/catalogs` | Список справочников |
-| GET | `/api/v1/catalogs/{name}/faults` | Неисправности справочника |
-| GET | `/api/v1/history` | Журнал классификаций |
-| GET | `/api/v1/config` | Конфигурация |
-| POST/PUT/DELETE | `/api/v1/admin/catalogs/{name}/faults` | Управление неисправностями |
+| Метод | Путь | Назначение |
+|-------|------|------------|
+| GET | `/ui` | Интерфейс контролёра |
+| POST | `/api/v1/pd/clean` | Предпросмотр очистки ПД |
+| POST | `/api/v1/classify` | Очистка ПД + классификация |
+| POST | `/api/v1/feedback` | Обратная связь контролёра |
+| POST | `/api/v1/feedback/{id}/apply` | Применить дообучение |
+| POST | `/api/v1/feedback/export` | Экспорт JSONL |
+| GET | `/api/v1/config` | Конфигурация сервиса |
 
 ## Лицензия
 

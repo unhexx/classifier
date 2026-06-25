@@ -30,8 +30,10 @@ SessionLocal = sessionmaker(
 
 
 def init_db() -> None:
-    """Создаёт таблицы, если их ещё нет."""
-    Base.metadata.create_all(bind=engine)
+    """Создаёт таблицы и применяет миграции."""
+    from app.db.migrations import run_migrations
+
+    run_migrations()
 
 
 def get_db():

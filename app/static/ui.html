@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unhexx Classifier — контроль ПД</title>
+  <style>
+    :root { --bg: #0f1419; --card: #1a2332; --accent: #3b82f6; --text: #e2e8f0; --muted: #94a3b8; --ok: #22c55e; --warn: #f59e0b; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+    header { padding: 1.5rem 2rem; border-bottom: 1px solid #2d3748; }
+    header h1 { font-size: 1.25rem; font-weight: 600; }
+    header p { color: var(--muted); font-size: 0.875rem; margin-top: 0.25rem; }
+    nav { display: flex; gap: 0.5rem; padding: 1rem 2rem; border-bottom: 1px solid #2d3748; }
+    nav button { background: transparent; border: 1px solid #2d3748; color: var(--muted); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; }
+    nav button.active { background: var(--accent); border-color: var(--accent); color: white; }
+    main { padding: 2rem; max-width: 960px; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .card { background: var(--card); border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; }
+    label { display: block; font-size: 0.875rem; color: var(--muted); margin-bottom: 0.5rem; }
+    textarea, select, input { width: 100%; background: var(--bg); border: 1px solid #2d3748; color: var(--text); padding: 0.75rem; border-radius: 6px; font-size: 0.9rem; margin-bottom: 1rem; }
+    textarea { min-height: 120px; resize: vertical; font-family: inherit; }
+    button.action { background: var(--accent); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+    button.action:hover { opacity: 0.9; }
+    .entity { display: inline-block; background: #7c2d12; color: #fed7aa; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.8rem; margin: 0.2rem; }
+    pre { background: var(--bg); padding: 1rem; border-radius: 6px; overflow-x: auto; font-size: 0.8rem; white-space: pre-wrap; }
+    .stats { display: flex; gap: 1rem; margin-bottom: 1rem; }
+    .stat { background: var(--bg); padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.85rem; }
+    .stat strong { color: var(--ok); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #2d3748; }
+    .status-pending { color: var(--warn); }
+    .status-applied { color: var(--ok); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Unhexx Classifier</h1>
+    <p>Контроль очистки персональных данных и дообучение локальной CPU-модели</p>
+  </header>
+  <nav>
+    <button class="active" data-tab="pd">Очистка ПД</button>
+    <button data-tab="classify">Классификация</button>
+    <button data-tab="feedback">Обратная связь</button>
+    <button data-tab="training">Дообучение</button>
+  </nav>
+  <main>
+    <section id="panel-pd" class="panel active">
+      <div class="card">
+        <label>Исходный контекст (может содержать ПД)</label>
+        <textarea id="pd-input" placeholder="Иванов И.И., тел. +7-999-123-45-67, email test@company.ru — сервер не включается"></textarea>
+        <button class="action" onclick="runPdClean()">Проверить очистку</button>
+      </div>
+      <div class="card" id="pd-result" style="display:none">
+        <div class="stats">
+          <div class="stat">Найдено ПД: <strong id="pd-count">0</strong></div>
+          <div class="stat">Время: <strong id="pd-time">0</strong> мс</div>
+        </div>
+        <label>Обнаруженные сущности</label>
+        <div id="pd-entities"></div>
+        <label style="margin-top:1rem">Очищенный текст</label>
+        <pre id="pd-cleaned"></pre>
+      </div>
+    </section>
+
+    <section id="panel-classify" class="panel">
+      <div class="card">
+        <label>Справочник</label>
+        <select id="cls-catalog">
+          <option value="servers">servers</option>
+          <option value="network">network</option>
+          <option value="automotive">automotive</option>
+          <option value="industrial">industrial</option>
+        </select>
+        <label>Контекст</label>
+        <textarea id="cls-input" placeholder="Описание проблемы..."></textarea>
+        <button class="action" onclick="runClassify()">Классифицировать</button>
+      </div>
+      <div class="card" id="cls-result" style="display:none">
+        <pre id="cls-output"></pre>
+      </div>
+    </section>
+
+    <section id="panel-feedback" class="panel">
+      <div class="card">
+        <label>Исходный текст</label>
+        <textarea id="fb-original"></textarea>
+        <label>Результат модели</label>
+        <textarea id="fb-model"></textarea>
+        <label>Исправленный текст (контролёр)</label>
+        <textarea id="fb-corrected"></textarea>
+        <label>Тип ПД</label>
+        <select id="fb-type">
+          <option value="fio">ФИО</option>
+          <option value="phone">Телефон</option>
+          <option value="email">Email</option>
+          <option value="passport">Паспорт</option>
+          <option value="snils">СНИЛС</option>
+          <option value="inn">ИНН</option>
+          <option value="ip">IP</option>
+          <option value="custom">Другое</option>
+        </select>
+        <label>Пропущенный фрагмент</label>
+        <input id="fb-missed" placeholder="Фрагмент, который модель не обнаружила">
+        <label>Комментарий контролёра</label>
+        <textarea id="fb-notes"></textarea>
+        <button class="action" onclick="submitFeedback()">Отправить исправление</button>
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:1rem;font-size:1rem">Очередь обратной связи</h3>
+        <table><thead><tr><th>ID</th><th>Тип</th><th>Статус</th><th>Действие</th></tr></thead><tbody id="fb-list"></tbody></table>
+      </div>
+    </section>
+
+    <section id="panel-training" class="panel">
+      <div class="card">
+        <p style="margin-bottom:1rem;color:var(--muted)">Экспорт накопленной обратной связи для дообучения локальной модели очистки ПД.</p>
+        <button class="action" onclick="exportTraining()">Экспортировать JSONL</button>
+        <pre id="export-result" style="margin-top:1rem"></pre>
+      </div>
+    </section>
+  </main>
+  <script>
+    document.querySelectorAll('nav button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+        if (btn.dataset.tab === 'feedback') loadFeedback();
+      });
+    });
+
+    async function runPdClean() {
+      const text = document.getElementById('pd-input').value;
+      const res = await fetch('/api/v1/pd/clean', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({text, save_log: true}) });
+      const data = await res.json();
+      document.getElementById('pd-result').style.display = 'block';
+      document.getElementById('pd-count').textContent = data.entity_count;
+      document.getElementById('pd-time').textContent = data.processing_time_ms;
+      document.getElementById('pd-entities').innerHTML = data.entities.map(e =>
+        `<span class="entity">${e.entity_type}: «${e.original}» → ${e.replacement}</span>`
+      ).join('') || '<span style="color:var(--muted)">ПД не обнаружены</span>';
+      document.getElementById('pd-cleaned').textContent = data.cleaned_text;
+    }
+
+    async function runClassify() {
+      const res = await fetch('/api/v1/classify', { method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ catalog: document.getElementById('cls-catalog').value, context: document.getElementById('cls-input').value, top_k: 3 })
+      });
+      const data = await res.json();
+      document.getElementById('cls-result').style.display = 'block';
+      document.getElementById('cls-output').textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function submitFeedback() {
+      const body = {
+        original_text: document.getElementById('fb-original').value,
+        model_output: document.getElementById('fb-model').value,
+        corrected_text: document.getElementById('fb-corrected').value,
+        entity_type: document.getElementById('fb-type').value,
+        missed_fragment: document.getElementById('fb-missed').value || null,
+        controller_notes: document.getElementById('fb-notes').value || null,
+      };
+      await fetch('/api/v1/feedback', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      loadFeedback();
+    }
+
+    async function loadFeedback() {
+      const res = await fetch('/api/v1/feedback?limit=20');
+      const data = await res.json();
+      document.getElementById('fb-list').innerHTML = data.map(f =>
+        `<tr><td>${f.id}</td><td>${f.entity_type||'—'}</td><td class="status-${f.status}">${f.status}</td>
+         <td>${f.status==='pending'?`<button class="action" style="padding:0.3rem 0.6rem;font-size:0.75rem" onclick="applyFeedback(${f.id})">Применить</button>`:'—'}</td></tr>`
+      ).join('') || '<tr><td colspan="4" style="color:var(--muted)">Нет записей</td></tr>';
+    }
+
+    async function applyFeedback(id) {
+      await fetch(`/api/v1/feedback/${id}/apply`, { method: 'POST' });
+      loadFeedback();
+    }
+
+    async function exportTraining() {
+      const res = await fetch('/api/v1/feedback/export', { method: 'POST' });
+      const data = await res.json();
+      document.getElementById('export-result').textContent =
+        `Экспорт: ${data.export_path}\nЗаписей: ${data.feedback_count}\nДообученных правил: ${data.learned_patterns_count}`;
+    }
+  </script>
+</body>
+</html>

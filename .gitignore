@@ -220,3 +220,4 @@ __marimo__/
 # Локальная БД классификатора (генерируется из сидов)
 data/*.db
 data/*.db-journal
+data/training/

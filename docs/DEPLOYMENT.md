@@ -1,58 +1,93 @@
 # Развёртывание
 
-## Локально (pip)
+## Требования
+
+- Python 3.11+
+- 512 МБ RAM (без ML-расширений)
+- Диск: ~100 МБ (код + справочники + журналы)
+
+## Локальная установка
 
 ```bash
 pip install -e ".[dev]"
 make seed
-make serve
+unhexx-classifier serve --host 0.0.0.0 --port 8000
 ```
 
-Проверка: `curl http://localhost:8000/health`
+Проверка:
+
+```bash
+curl http://localhost:8000/health
+# → pd_cleaning_enabled: true, pd_model_version: pd-cpu-v1
+
+curl -o /dev/null -w "%{http_code}" http://localhost:8000/ui
+# → 200
+```
 
 ## Docker
 
 ```bash
-make docker-build
-docker run -p 8000:8000 -v classifier-data:/app/data unhexx-classifier:latest
-```
-
-## Docker Compose (рекомендуется)
-
-```bash
 docker compose up --build -d
-docker compose ps   # статус healthcheck
 ```
 
-Персистентная БД хранится в volume `classifier-data`.
+Интерфейс контролёра: http://localhost:8000/ui
+
+Volume `classifier-data` хранит SQLite с журналами и дообученными правилами.
 
 ## Переменные окружения
 
 | Переменная | По умолчанию | Описание |
 |------------|--------------|----------|
-| `DATABASE_URL` | `sqlite:///./data/classifier.db` | Путь к SQLite |
+| `ENABLE_PD_CLEANING` | `true` | Включить очистку ПД перед классификацией |
+| `ENABLE_PD_CLEANING_LOG` | `true` | Журналировать операции очистки |
+| `PD_MODEL_VERSION` | `pd-cpu-v1` | Версия локальной модели |
+| `DATABASE_URL` | `sqlite:///./data/classifier.db` | Путь к БД |
+| `ENABLE_CLASSIFICATION_LOGGING` | `true` | Журнал классификаций |
 | `DEFAULT_TOP_K` | `5` | Количество результатов |
 | `DEFAULT_MIN_CONFIDENCE` | `0.25` | Порог уверенности |
-| `WEIGHT_KEYWORD` | `0.35` | Вес Jaccard |
-| `WEIGHT_FUZZY` | `0.40` | Вес fuzzy |
-| `WEIGHT_TRIGRAM` | `0.25` | Вес триграмм |
-| `ENABLE_CLASSIFICATION_LOGGING` | `true` | Журнал аудита |
-| `MAX_CONTEXT_LENGTH` | `8000` | Макс. длина контекста |
-| `LOG_LEVEL` | `INFO` | Уровень логов |
 
-См. `.env.example`.
+Полный список — в `.env.example`.
 
-## systemd (Linux)
+## Рабочий процесс контролёра
+
+1. Запустить сервис, открыть `/ui`
+2. На вкладке «Очистка ПД» проверить качество маскирования
+3. При пропуске ПД — вкладка «Обратная связь» → отправить исправление
+4. Нажать «Применить» для дообучения модели
+5. Повторно проверить тот же текст — правило должно сработать
+6. Периодически экспортировать JSONL для внешнего переобучения
+
+## Производительность
+
+| Операция | Типичное время |
+|----------|----------------|
+| Очистка ПД | < 5 мс |
+| Классификация (28 записей) | < 50 мс |
+| Полный пайплайн | < 100 мс |
+
+## Обновление
+
+```bash
+git pull
+pip install -e ".[dev]"
+make seed          # обновить справочники
+# перезапустить сервис — таблицы создаются автоматически
+```
+
+Дообученные правила и обратная связь сохраняются в SQLite и не сбрасываются при обновлении справочников.
+
+## systemd
 
 ```ini
 [Unit]
-Description=Unhexx Classifier
+Description=Unhexx Classifier (PD + Classification)
 After=network.target
 
 [Service]
 Type=simple
 User=classifier
 WorkingDirectory=/opt/unhexx-classifier
+Environment=ENABLE_PD_CLEANING=true
 Environment=DATABASE_URL=sqlite:////opt/unhexx-classifier/data/classifier.db
 ExecStart=/opt/unhexx-classifier/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
 Restart=on-failure
@@ -60,15 +95,3 @@ Restart=on-failure
 [Install]
 WantedBy=multi-user.target
 ```
-
-## Производительность
-
-- Классификация: < 100 мс на каталог ~30 записей (типичное железо)
-- Память: ~10–50 МБ (без embeddings)
-- SQLite подходит для одного инстанса; для горизонтального масштабирования — внешняя БД
-
-## Обновление справочников
-
-1. Отредактировать JSON в `data/catalogs/`
-2. `make seed` или перезапуск сервиса (lifespan загрузит сиды автоматически)
-3. Либо использовать Admin API для runtime-изменений

@@ -1,152 +1,171 @@
 # Руководство по использованию
 
+## Назначение сервиса
+
+Unhexx Classifier — унифицированный сервис, который:
+
+1. **Очищает контекст от персональных данных** локальной CPU-моделью перед обработкой
+2. **Классифицирует** очищенный контекст по справочнику типовых неисправностей
+3. Предоставляет **интерфейс контролёра** (`/ui`) для проверки очистки ПД
+4. Поддерживает **дообучение модели** на исправлениях, предоставленных контролёром
+
+Все операции выполняются **локально**, без отправки данных во внешние сервисы.
+
 ## Установка
 
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
+## Интерфейс контролёра
+
+Откройте http://localhost:8000/ui после запуска сервиса.
+
+| Вкладка | Функция |
+|---------|---------|
+| **Очистка ПД** | Ввод текста → предпросмотр обнаруженных сущностей и очищенного результата |
+| **Классификация** | Полный пайплайн: очистка ПД → классификация по справочнику |
+| **Обратная связь** | Контролёр отправляет исправление, если модель пропустила ПД |
+| **Дообучение** | Экспорт накопленных исправлений в JSONL |
+
 ## CLI
 
-### Классификация
-
 ```bash
-unhexx-classifier classify --catalog servers "сервер не включается, красный индикатор psu"
-unhexx-classifier classify -c network "link down на порту 24" --top 3 --min-conf 0.3
-unhexx-classifier classify -c automotive "перегрев двигателя, антифриз заканчивается" --details
-```
+# Классификация (с автоматической очисткой ПД)
+unhexx-classifier classify -c servers "Петров И.И. +79991234567 сервер не включается"
 
-### Запуск сервиса
-
-```bash
+# Запуск сервиса
 unhexx-classifier serve --host 0.0.0.0 --port 8000
-```
-
-### Журнал классификаций
-
-```bash
-unhexx-classifier history --limit 10
-```
-
-### Добавление неисправности
-
-```bash
-unhexx-classifier add-fault \
-  --catalog servers \
-  --code SRV-CUSTOM-001 \
-  --title "Пользовательская неисправность" \
-  --description "Описание проблемы" \
-  --symptoms "симптом1,симптом2" \
-  --keywords "ключ1,ключ2" \
-  --category "Пользовательские" \
-  --actions "Действие 1|Действие 2"
 ```
 
 ## REST API
 
-Swagger UI: http://localhost:8000/docs
+### 1. Предпросмотр очистки ПД
 
-### Классификация (текст)
+```bash
+curl -X POST http://localhost:8000/api/v1/pd/clean \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Иванов Иван, ivan@test.ru, +7-916-123-45-67 — raid degraded"}'
+```
+
+Ответ:
+
+```json
+{
+  "original_text": "...",
+  "cleaned_text": "[FIO], [EMAIL], [PHONE] — raid degraded",
+  "entities": [
+    {"entity_type": "fio", "original": "Иванов Иван", "replacement": "[FIO]", ...}
+  ],
+  "entity_count": 3,
+  "model_version": "pd-cpu-v1"
+}
+```
+
+### 2. Классификация (очистка + скоринг)
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/classify \
   -H "Content-Type: application/json" \
   -d '{
     "catalog": "servers",
-    "context": "raid degraded, rebuild идёт, потеря диска",
-    "top_k": 3,
-    "min_confidence": 0.25
+    "context": "Сидоров П.П., admin@corp.ru — сервер не включается psu",
+    "top_k": 3
   }'
 ```
 
-### Классификация (структурированный контекст)
+Поля ответа:
+
+- `original_context` — исходный текст (если найдены ПД)
+- `context` — очищенный текст, переданный в классификатор
+- `pd_entities` — список обнаруженных и заменённых сущностей
+- `pd_cleaning_applied` — флаг применения очистки
+- `matches` — результаты классификации
+
+Параметр `skip_pd_cleaning: true` отключает очистку (только для отладки).
+
+### 3. Обратная связь контролёра
+
+Контролёр обнаружил, что модель **пропустила** фрагмент ПД:
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/classify \
+curl -X POST http://localhost:8000/api/v1/feedback \
   -H "Content-Type: application/json" \
   -d '{
-    "catalog": "network",
-    "context": {
-      "description": "нет связности между подсетями",
-      "symptoms": ["vlan", "нет ping"],
-      "device": "Cisco 9300",
-      "observed": "трафик не проходит"
-    }
+    "original_text": "Заявка от Козлов В.В.",
+    "model_output": "Заявка от Козлов В.В.",
+    "corrected_text": "Заявка от [FIO]",
+    "entity_type": "fio",
+    "missed_fragment": "Козлов В.В.",
+    "controller_notes": "Сокращённое ФИО не распознано"
   }'
 ```
 
-### Список справочников
+### 4. Применение дообучения
 
 ```bash
-curl http://localhost:8000/api/v1/catalogs
+curl -X POST http://localhost:8000/api/v1/feedback/1/apply
 ```
 
-### Неисправности справочника
+Создаёт новое правило в `learned_pd_patterns`, которое модель использует при следующей очистке.
+
+### 5. Экспорт для переобучения
 
 ```bash
-curl http://localhost:8000/api/v1/catalogs/servers/faults
+curl -X POST http://localhost:8000/api/v1/feedback/export
 ```
 
-### Журнал
+Сохраняет `data/training/pd_feedback.jsonl`.
 
-```bash
-curl "http://localhost:8000/api/v1/history?limit=20"
-```
-
-### Конфигурация
+### 6. Конфигурация
 
 ```bash
 curl http://localhost:8000/api/v1/config
 ```
 
-### Администрирование (локальная среда)
+## Типы распознаваемых ПД
 
-```bash
-# Создать
-curl -X POST http://localhost:8000/api/v1/admin/catalogs/servers/faults \
-  -H "Content-Type: application/json" \
-  -d '{"code":"SRV-API-001","title":"Тест","description":"Описание тестовой записи"}'
+| Тип | Примеры | Замена |
+|-----|---------|--------|
+| `email` | user@company.ru | `[EMAIL]` |
+| `phone` | +7-999-123-45-67 | `[PHONE]` |
+| `fio` | Иванов Иван Иванович | `[FIO]` |
+| `passport` | 45 06 123456 | `[PASSPORT]` |
+| `snils` | 123-456-789 01 | `[SNILS]` |
+| `inn` | 7707083893 | `[INN]` |
+| `ip` | 192.168.1.10 | `[IP]` |
+| `card` | 4111 1111 1111 1111 | `[CARD]` |
+| `address` | ул. Ленина д. 5 кв. 10 | `[ADDRESS]` |
 
-# Обновить
-curl -X PUT http://localhost:8000/api/v1/admin/catalogs/servers/faults/SRV-API-001 \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Новый заголовок"}'
-
-# Удалить
-curl -X DELETE http://localhost:8000/api/v1/admin/catalogs/servers/faults/SRV-API-001
-```
+Дообученные типы добавляются контролёром через обратную связь.
 
 ## Python API
 
 ```python
-from app.core.catalog import catalog_registry
-from app.core.classifier import engine
+from app.core.pd_cleaner import pd_cleaner
 from app.core.models import ClassifyRequest
-from app.db.seeds import ensure_catalogs_loaded
+from app.services.classify_service import classify_context
 from app.db.session import SessionLocal, init_db
 
 init_db()
 with SessionLocal() as db:
-    ensure_catalogs_loaded(db)
-    catalog_registry.load_from_db(db)
+    # Очистка ПД
+    result = pd_cleaner.clean("Петров И.И., test@mail.ru — link down")
+    print(result.cleaned_text)
 
-request = ClassifyRequest(
-    catalog="industrial",
-    context="ибп разряжается, переключение на батарею",
-    top_k=5,
-)
-result = engine.classify(request)
-for match in result.matches:
-    print(f"{match.code}: {match.title} ({match.confidence:.2f})")
+    # Полный пайплайн
+    req = ClassifyRequest(catalog="network", context=result.cleaned_text)
+    response = classify_context(db, req)
+    print(response.matches[0].title)
 ```
 
-## Доступные справочники
+## Справочники классификации
 
-| Имя | Описание | Записей |
-|-----|----------|---------|
-| `servers` | Серверное и IT-оборудование | 25+ |
-| `network` | Сетевое оборудование | 20+ |
-| `automotive` | Автомобильные неисправности | 12+ |
-| `industrial` | ИБП, HVAC, хранение, ДГУ | 10+ |
+| Имя | Записей | Область |
+|-----|---------|---------|
+| `servers` | 28 | Серверное оборудование |
+| `network` | 25 | Сетевое оборудование |
+| `automotive` | 14 | Автомобили |
+| `industrial` | 14 | ИБП, HVAC, хранение |

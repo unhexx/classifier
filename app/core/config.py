@@ -46,12 +46,19 @@ class Settings(BaseSettings):
     enable_classification_logging: bool = True
     history_max_entries: int = 100
 
+    # --- Очистка ПД (локальная CPU-модель) ---
+    enable_pd_cleaning: bool = True
+    enable_pd_cleaning_log: bool = True
+    pd_model_version: str = "pd-cpu-v1"
+    training_export_dir: Path = Path(__file__).parent.parent.parent / "data" / "training"
+
     # --- Сервер ---
     app_title: str = "Unhexx Classifier"
-    app_version: str = "0.2.0"
+    app_version: str = "0.3.0"
     app_description: str = (
-        "Унифицированный сервис классификации типовых неисправностей. "
-        "Работает полностью локально."
+        "Унифицированный сервис классификации с предварительной очисткой контекста "
+        "от персональных данных локальной CPU-моделью. "
+        "Интерфейс контролёра для проверки очистки ПД и дообучения модели."
     )
 
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"

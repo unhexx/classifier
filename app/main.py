@@ -11,14 +11,19 @@
 from contextlib import asynccontextmanager
 from typing import Any
 
+from pathlib import Path
+
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.api.v1.admin import router as admin_router
+from app.api.v1.feedback import router as feedback_router
+from app.api.v1.pd import router as pd_router
 from app.core.catalog import catalog_registry
 from app.core.classifier import engine
 from app.core.config import settings
@@ -62,6 +67,19 @@ app = FastAPI(
 )
 
 app.include_router(admin_router)
+app.include_router(pd_router)
+app.include_router(feedback_router)
+
+_static_dir = Path(__file__).parent / "static"
+if _static_dir.exists():
+    app.mount("/static", StaticFiles(directory=_static_dir), name="static")
+
+
+@app.get("/ui", tags=["ui"], include_in_schema=False)
+def controller_ui():
+    """Интерфейс контролёра для проверки очистки ПД и дообучения."""
+    ui_path = Path(__file__).parent / "static" / "ui.html"
+    return FileResponse(ui_path)
 
 
 @app.get("/health", tags=["system"])
@@ -70,6 +88,8 @@ def health() -> dict[str, Any]:
         "status": "ok",
         "version": settings.app_version,
         "catalogs": catalog_registry.names,
+        "pd_cleaning_enabled": settings.enable_pd_cleaning,
+        "pd_model_version": settings.pd_model_version,
     }
 
 
@@ -87,6 +107,8 @@ def get_config() -> ConfigResponse:
             "embedding": settings.weight_embedding,
         },
         enable_classification_logging=settings.enable_classification_logging,
+        enable_pd_cleaning=settings.enable_pd_cleaning,
+        pd_model_version=settings.pd_model_version,
         max_context_length=settings.max_context_length,
     )
 
@@ -97,9 +119,7 @@ def classify(request: ClassifyRequest, db: Session = Depends(get_db)) -> Classif
     if not catalog_registry.get(request.catalog):
         catalog_registry.load_from_db(db)
 
-    from app.core.classifier import _normalize
-
-    context_text = _normalize(request.resolved_context_text())
+    context_text = request.resolved_context_text().strip()
     if len(context_text) < 3:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

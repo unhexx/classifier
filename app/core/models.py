@@ -54,6 +54,9 @@ class ClassifyRequest(BaseModel):
     include_scoring_details: bool = Field(
         False, description="Включить детали скоринга в ответ (для отладки)"
     )
+    skip_pd_cleaning: bool = Field(
+        False, description="Пропустить очистку ПД (только для отладки в доверенной среде)"
+    )
 
     @model_validator(mode="after")
     def validate_context_present(self) -> "ClassifyRequest":
@@ -85,14 +88,48 @@ class FaultMatch(BaseModel):
     recommended_actions: list[str] = Field(default_factory=list)
 
 
+class PdEntityRead(BaseModel):
+    """Обнаруженная сущность ПД."""
+
+    entity_type: str
+    original: str
+    replacement: str
+    start: int
+    end: int
+    confidence: float = 1.0
+
+
+class PdCleanRequest(BaseModel):
+    """Запрос на предпросмотр очистки ПД."""
+
+    text: str = Field(..., min_length=1)
+    save_log: bool = Field(True, description="Сохранить в журнал очистки")
+
+
+class PdCleanResponse(BaseModel):
+    """Результат очистки ПД."""
+
+    original_text: str
+    cleaned_text: str
+    entities: list[PdEntityRead]
+    entity_count: int
+    processing_time_ms: float
+    model_version: str
+
+
 class ClassifyResponse(BaseModel):
     """Ответ классификатора."""
 
     catalog: str
     context: str
+    original_context: str | None = None
+    pd_entities: list[PdEntityRead] = Field(default_factory=list)
+    pd_cleaning_applied: bool = False
     matches: list[FaultMatch]
     total_candidates: int
     processing_time_ms: float | None = None
+    scoring_time_ms: float | None = None
+    pd_cleaning_time_ms: float | None = None
     scoring_weights: dict[str, float] | None = None
 
 
@@ -160,6 +197,40 @@ class HistoryEntry(BaseModel):
     created_at: str
 
 
+class FeedbackCreate(BaseModel):
+    """Обратная связь контролёра по ошибке очистки ПД."""
+
+    original_text: str = Field(..., min_length=1)
+    model_output: str = Field(..., min_length=1)
+    corrected_text: str = Field(..., min_length=1)
+    entity_type: str | None = Field(None, description="Тип ПД: email, phone, fio, ...")
+    missed_fragment: str | None = Field(None, description="Фрагмент, пропущенный моделью")
+    controller_notes: str | None = None
+
+
+class FeedbackEntry(BaseModel):
+    """Запись обратной связи."""
+
+    id: int
+    original_text: str
+    model_output: str
+    corrected_text: str
+    entity_type: str | None = None
+    missed_fragment: str | None = None
+    controller_notes: str | None = None
+    status: str
+    created_at: str
+
+
+class TrainingExportResponse(BaseModel):
+    """Результат экспорта данных для дообучения."""
+
+    export_path: str
+    feedback_count: int
+    learned_patterns_count: int
+    lines: list[str]
+
+
 class ConfigResponse(BaseModel):
     """Публичная конфигурация сервиса."""
 
@@ -168,4 +239,6 @@ class ConfigResponse(BaseModel):
     default_min_confidence: float
     scoring_weights: dict[str, float]
     enable_classification_logging: bool
+    enable_pd_cleaning: bool
+    pd_model_version: str
     max_context_length: int

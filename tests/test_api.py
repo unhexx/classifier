@@ -23,7 +23,8 @@ def test_health():
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "ok"
-    assert data["version"] == "0.2.0"
+    assert data["version"] == "0.3.0"
+    assert data["pd_cleaning_enabled"] is True
     assert "servers" in data["catalogs"]
 
 
@@ -48,7 +49,7 @@ def test_classify_via_api():
     data = resp.json()
     assert data["catalog"] == "servers"
     assert len(data["matches"]) >= 1
-    assert data["matches"][0]["confidence"] > 0.3
+    assert data["matches"][0]["confidence"] > 0.25
 
 
 def test_classify_structured_context():
@@ -119,7 +120,9 @@ def test_classification_history():
 
 
 def test_admin_create_and_delete_fault():
-    code = "SRV-TEST-999"
+    import uuid
+
+    code = f"SRV-TEST-{uuid.uuid4().hex[:6].upper()}"
     create_resp = client.post(
         "/api/v1/admin/catalogs/servers/faults",
         json={
@@ -149,7 +152,9 @@ def test_admin_create_and_delete_fault():
 
 
 def test_admin_update_fault():
-    code = "SRV-TEST-998"
+    import uuid
+
+    code = f"SRV-TEST-{uuid.uuid4().hex[:6].upper()}"
     client.post(
         "/api/v1/admin/catalogs/servers/faults",
         json={

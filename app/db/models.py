@@ -80,9 +80,62 @@ class ClassificationLog(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     catalog_name: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
     context: Mapped[str] = mapped_column(Text, nullable=False)
+    original_context: Mapped[str | None] = mapped_column(Text, nullable=True)
+    pd_entities_json: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
     top_matches_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False)
     top_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     processing_time_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class PdCleaningLog(Base):
+    """Журнал очистки персональных данных."""
+
+    __tablename__ = "pd_cleaning_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    original_text: Mapped[str] = mapped_column(Text, nullable=False)
+    cleaned_text: Mapped[str] = mapped_column(Text, nullable=False)
+    entities_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False)
+    entity_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    processing_time_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class ControllerFeedback(Base):
+    """Обратная связь контролёра для дообучения модели очистки ПД."""
+
+    __tablename__ = "controller_feedback"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    original_text: Mapped[str] = mapped_column(Text, nullable=False)
+    model_output: Mapped[str] = mapped_column(Text, nullable=False)
+    corrected_text: Mapped[str] = mapped_column(Text, nullable=False)
+    entity_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    missed_fragment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    controller_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default="pending", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class LearnedPdPattern(Base):
+    """Дообученное правило очистки ПД (из обратной связи контролёра)."""
+
+    __tablename__ = "learned_pd_patterns"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    entity_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    pattern: Mapped[str] = mapped_column(Text, nullable=False)
+    replacement: Mapped[str] = mapped_column(String(32), nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, default=0.85, nullable=False)
+    source_feedback_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    active: Mapped[bool] = mapped_column(default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

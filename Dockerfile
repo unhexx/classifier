@@ -27,6 +27,7 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 COPY app ./app
 COPY data ./data
+# static/ui.html входит в app/static/
 
 RUN mkdir -p /app/data && chown -R classifier:classifier /app
 
