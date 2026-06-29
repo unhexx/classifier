@@ -157,8 +157,8 @@
             <div class="text-[10px] text-zinc-500">Виртуальный скролл • клик = фрейм деталей • {{ virtualHistory.total }} записей (фильтр)</div>
           </div>
           <div class="flex items-center gap-2">
-            <input v-model="historyFilter" placeholder="фильтр (каталог / неисправность / текст)" class="text-xs bg-zinc-950 border border-zinc-700 rounded px-2 py-1 w-64">
-            <select v-model="historySort" class="text-xs bg-zinc-950 border border-zinc-700 rounded px-2 py-1">
+            <input v-model="historyFilter" @input="resetHistoryScroll" placeholder="фильтр (каталог / неисправность / текст)" class="text-xs bg-zinc-950 border border-zinc-700 rounded px-2 py-1 w-64">
+            <select v-model="historySort" @change="resetHistoryScroll" class="text-xs bg-zinc-950 border border-zinc-700 rounded px-2 py-1">
               <option value="time">по времени</option>
               <option value="conf">по conf</option>
               <option value="catalog">по каталогу</option>
@@ -646,6 +646,11 @@
         // Virtual scroll handlers
         onHistoryScroll(e) {
           this.scrollTop = e.target.scrollTop;
+        },
+        resetHistoryScroll() {
+          this.scrollTop = 0;
+          const el = document.getElementById('history-scroll');
+          if (el) el.scrollTop = 0;
         },
         setContainerHeight(el) {
           if (el) {
