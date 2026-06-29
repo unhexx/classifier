@@ -1,156 +1,127 @@
-# Agentix
+# unhexx-classifier
 
-![exception.expert Logo](exception-expert-logo.jpg)
+**Унифицированный сервис классификации с предварительной очисткой контекста от персональных данных (ПД) локальной CPU-моделью, с современным reactive интерфейсом контролёра.**
 
-**Agentic Loop Template by exception.expert**
+Сервис принимает текстовый контекст, **автоматически удаляет ПД**, выполняет **классификацию** (с `failure_mode` из каталогов) и возвращает результат. 
 
-**A production-grade, self-contained template for closed-loop, self-improving multi-role agentic development cycles.**
+**UI (http://localhost:8123/ui)** — на базе Vue 3 + WebSocket: 
+- мгновенный отклик (уровень биржевых терминалов)
+- разноцветные маркеры ПД
+- live история запросов
+- отображение `failure_mode` / `presumed_typical_malfunction`
+- быстрые действия для дообучения прямо из результатов
 
-Powered by frontier LLMs (MiniMax 2.5 / M2.7 via Blackbox, or compatible agents). Optimized for complex, long-running software projects requiring autonomy, consistency, safety, and continuous self-improvement.
+Контролёр проверяет качество и передаёт исправления для дообучения.
 
----
+## Ключевые возможности
 
-## 🚀 Value for End Users (Developers & Teams)
+| Компонент | Описание |
+|-----------|----------|
+| **Очистка ПД** | Локальная CPU-модель (`pd-cpu-v1`): email, телефон, ФИО, паспорт, СНИЛС, ИНН, IP, карты, адреса |
+| **Классификация** | 4 справочника (200+ неисправностей), гибридный скорер keyword + fuzzy + trigram. Справочники построены по принципам FMEA, ITIL и CMMS. |
+| **Интерфейс контролёра** | `/ui` — предпросмотр очистки, классификация, обратная связь, экспорт для дообучения |
+| **Дообучение** | Контролёр сообщает об ошибках → правила применяются к модели → экспорт JSONL |
+| **Развёртывание** | Полностью локально: pip / Docker, без облачных вызовов |
 
-This template transforms how you build and maintain sophisticated software systems:
+## Быстрый старт
 
-- **10x Productivity Boost for Complex Tasks**: The structured **Orchestrator → Coder → Tester → Debugger → Reviewer** loop allows the LLM to iteratively plan, implement, test, debug, and validate changes until the Reviewer confirms completion. No more one-shot prompts or lost context.
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
 
-- **Self-Improving & Knowledge Retention**: Every cycle crystallizes lessons, decisions, and questions into persistent memory (`PROJECT_CONTEXT.md`, `SPRINTPLAN.md`, questions pool, meta-harvester). The system gets smarter over time without manual intervention.
+# Запуск сервиса
+unhexx-classifier serve
 
-- **Reliable & Deterministic Execution**: Strict JSON handoff schemas (`HANDOFF_SCHEMA.md`), typed Python memory layer, robust error handling, and logging. Works reliably in non-interactive environments (Blackbox spawning fresh PowerShell sessions).
+# Интерфейс контролёра
+# → http://localhost:8123/ui
 
-- **Real-World Tool Access via MCP**: Extensible tool registry integrates with Model Context Protocol skills for:
-  - Shell & file operations
-  - Windows GUI automation & vision grounding (e.g., Florence-2 / LocateAnything-style)
-  - Remote SSH / fleet management
-  - Policy-aware safe execution & sandboxing (Firecracker, Windows JobObject)
-  - Analytics, RAG feedback, skill marketplace
-  - And custom skills you develop
-
-- **Safety & Isolation First**: Built-in support for strong isolation, policy engines (TOML), audit logging via CommandLog, and human-in-the-loop approvals where needed. Perfect for enterprise or sensitive environments.
-
-- **Multi-Project & Team Ready**: Designed for reuse across multiple repositories. Universal template lives here; project-specific configs, envs, and artifacts stay in consumer repos (via `.gitignore` discipline). Multi-repo git sync rules ensure changes to standards/prompts propagate instantly.
-
-- **Best-in-Class Developer Experience**: One-command setup (`Agent-Init.ps1`), detailed guides, Russian natural-language commit messages (human senior dev voice, no AI mentions), prompt compression for long-context models, and alignment with modern agentic architectures.
-
-**Ideal for**: Solo developers or small teams working on large codebases, infrastructure, desktop apps (WinGUI), backend services, or AI/agent platforms who want to leverage frontier models for autonomous, high-quality development velocity while maintaining full control and auditability.
-
----
-
-## Quick Start (Blackbox + MiniMax 2.5 Recommended)
-
-1. **Prepare Environment** (one-time per project):
-   ```powershell
-   cd C:\Path\To\Your\Project
-   .\agentic_loop_template\Agent-Init.ps1
-   ```
-   This creates `.venv`, installs deps, sets up PowerShell enhancements, and generates a ready-to-use starter prompt.
-
-2. **Configure Your AI Agent (Blackbox / VS Code)**:
-   - Model: MiniMax 2.5 (or highest quality available)
-   - Add Custom Instructions from `Agent-Init.md` (includes core rules, commit style, loop discipline).
-
-3. **Launch the Loop**:
-   Paste the generated prompt (or content of `first_message.md` / short orchestrator prompt) as your first message to the LLM.
-   The agent starts as Orchestrator, creates/updates context files, and begins the cycle.
-
-See `Agent-Init.md` for full Blackbox launch guide, recommended settings, and troubleshooting.
-
-**Important for Consumer Projects**:
-- Add `agentic_loop_template/` (and any generated cycle artifacts like `PROJECT_CONTEXT.md`, handoff JSONs, logs) to your project's `.gitignore`.
-- Keep your project-specific parameters in separate files: `.env.agentic`, `.env.blackbox`, `config/agentic.env`, etc.
-- This template repo is the single source of truth for the universal parts.
-
----
-
-## How the Agentic Loop Works
-
-```
-External Sprint Loop
-┌─────────────────────────────────────────────────────────────┐
-│  Orchestrator → Coder → Tester → Debugger → Reviewer          │
-│       ↑ (if NOT DONE)                                         │
-│       └─────────────────────────────── back to Orchestrator   │
-│  DONE → Task Complete + Lessons Crystallized                  │
-└─────────────────────────────────────────────────────────────┘
+# API-документация
+# → http://localhost:8123/docs
 ```
 
-Inside each role: **PLAN → ACT (max 3 tool calls) → REFLECT → repeat** until handoff.
+### Пример: классификация с очисткой ПД
 
-Reviewer can loop back or approve. All state transferred via strict JSON (`HANDOFF_SCHEMA.md`).
+```bash
+curl -X POST http://localhost:8123/api/v1/classify \
+  -H "Content-Type: application/json" \
+  -d '{
+    "catalog": "servers",
+    "context": "Иванов И.И., +79991234567 — сервер не включается, красный psu"
+  }'
+```
 
-## Key Files & Their Purpose
+Ответ содержит `original_context`, `context` (очищенный), `pd_entities` и `matches`.
 
-| File | Purpose |
-|------|---------|
-| `README.md` | This overview (best practices, value, quick start) |
-| `SYSTEM_PROMPT.md` | Master system prompt with {{placeholders}} for project customization. Tuned for MiniMax 2.5 roles and settings. |
-| `AGENT_ROLES.md` | Detailed per-role instructions, including prompt compression, git sync discipline (§11), reviewer closure rules. |
-| `HANDOFF_SCHEMA.md` | JSON contract for reliable role-to-role and session-to-session state transfer (includes git_sync_status, clarification_questions, etc.). |
-| `DEVELOPMENT_STANDARDS.md` | Coding standards, commit rules (Russian human voice), multi-repo discipline, evidence markers, INVEST task principles. |
-| `TOOLS_REGISTRY.md` | Catalog of available tools for the local runner / MCP integration. Core + extensible via skills. |
-| `TOOLS_INSTRUCTIONS.md` | Usage instructions and examples for tools. |
-| `PROJECT_CONTEXT_TEMPLATE.md` | Template for the living project memory/context file. |
-| `PROMPT_COMPRESSION_GUIDE.md` | Techniques for handling long context in M2.5/M2.7 (critical for complex projects). |
-| `Agent-Init.ps1` / `Agent-Init.md` | One-command robust setup script + detailed usage guide for Blackbox/VSCode. |
-| `setup_env_template.ps1` | Environment bootstrap (venv, deps, PowerShell modules). |
-| `memory/` | Persistent structured memory: questions collector, meta harvester, schema, store, workspace for cross-cycle learning and sync enforcement. |
-| `prompts/` | Optimized starter and short orchestrator prompts for M2.5. |
+### Пример: предпросмотр очистки ПД
 
-See also `AGENTIC_LOOP_README.md` for additional context details.
+```bash
+curl -X POST http://localhost:8123/api/v1/pd/clean \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Петров П.П., email admin@corp.ru, диск не виден"}'
+```
 
-## Configuration & Multi-Repo Best Practices
+### Пример: обратная связь контролёра
 
-- **Environment Separation**: Never commit secrets or project-specific settings to this template repo or consumer repos' shared history. Use ignored `.env.*` files.
-- **Git Discipline (Critical)**: When making changes to the template (prompts, standards, scripts), the Reviewer must output full closure commands covering **all** local clones + remotes of **both** the template repo and all consumer projects. Use sync scripts where available. This ensures instant propagation of improvements.
-- **GitHub Operations**: After rollout, prefer `gh` CLI verified commands from TOOLS_REGISTRY for any github remote interactions (auth, PRs, etc.). Raw `git` for non-GitHub remotes only.
-- **.gitignore in Consumers**: Explicitly ignore the template folder and cycle outputs in product repos to keep histories clean.
+```bash
+curl -X POST http://localhost:8123/api/v1/feedback \
+  -H "Content-Type: application/json" \
+  -d '{
+    "original_text": "Сидоров А.А. жалуется на перегрев",
+    "model_output": "Сидоров А.А. жалуется на перегрев",
+    "corrected_text": "[FIO] жалуется на перегрев",
+    "entity_type": "fio",
+    "missed_fragment": "Сидоров А.А."
+  }'
 
-## Adaptation to Your Project
+# Применить дообучение
+curl -X POST http://localhost:8123/api/v1/feedback/1/apply
 
-1. Copy `agentic_loop_template/` into your repo root (or reference via worktree/sync from dedicated clone).
-2. Fill all `{{...}}` placeholders in `SYSTEM_PROMPT.md` (project name, paths, primary goals, tech stack).
-3. Create `TASK_SPECIFICATION.md` or equivalent with clear, testable requirements.
-4. Run `Agent-Init.ps1` and follow the Blackbox instructions.
-5. Customize `TOOLS_REGISTRY.md` / add MCP skills relevant to your domain (GUI, vision, domain-specific APIs, Atlassian integrations, etc.).
+# Экспорт для переобучения
+curl -X POST http://localhost:8123/api/v1/feedback/export
+```
 
-For heavy data or enterprise projects: add dedicated validation roles or data sanity checks as needed.
+## Docker (преднастроенный образ)
 
-## Technical Highlights
+```bash
+make docker-build          # собрать unhexx-classifier:0.3.0
+make docker-up             # запустить с volume
+make docker-smoke          # проверить /health, /ui, classify
 
-- **Memory Layer**: Python package with schema validation, persistent store, questions pool, meta-optimization. Supports simulation testing and real cross-session continuity.
-- **Prompt Engineering**: Role-specific temperatures/top-p, compression guide, short vs full orchestrator prompts.
-- **Extensibility**: MCP skills system (examples for agent execution, vision grounding, Windows GUI, integrations ready patterns).
-- **Verification**: Smoke tests, GUI integration tests, remote E2E, policy tests included in ecosystem.
+# Интерфейс контролёра: http://localhost:8123/ui
+# Swagger:               http://localhost:8123/docs
+```
 
-## Limitations & Recommendations
+Данные (SQLite, журналы, дообучение ПД) сохраняются в volume `classifier-data`.
 
-- Optimized for Windows + PowerShell + Blackbox + MiniMax-class models. Adaptable to Linux/Mac with minor script changes.
-- Max recommended 3-4 full cycles before architecture review to avoid context bloat (use compression & memory).
-- For very large monorepos: combine with dedicated sub-agents or LangGraph-style orchestration seeds.
+Порт по умолчанию: **8123** (настраивается через `PORT=... make docker-up`).
 
-## Version & Evolution
+## Тесты
 
-Current unified version incorporates refinements from production usage (expanded tools registry & instructions for rich MCP skillset, improved memory module with structured store/workspace, updated prompts and setup scripts, multi-repo sync discipline, environment separation best practices).
+```bash
+make test
+```
 
-**Template Version: 3.2+ (unified, production-hardened, MCP/vision/isolation ready, 2026-06) — by exception.expert**
+39+ тестов, включая очистку ПД, обратную связь и дообучение.
 
-## Contributing & Governance
+## Документация
 
-- All changes must be backward-compatible or clearly documented.
-- Commit messages in natural Russian (human mid/senior developer voice). Never mention AI/LLM/model names.
-- Follow `DEVELOPMENT_STANDARDS.md` §11 self-cycle rules and multi-repo discipline.
-- Issues/PRs welcome in this repo for template improvements.
+- [Руководство по использованию](docs/USAGE.md)
+- [Архитектура](docs/ARCHITECTURE.md)
+- [Развёртывание](docs/DEPLOYMENT.md)
+- [Справочники неисправностей](data/catalogs/README.md)
 
-## Related Projects
+## API
 
-This template is the foundation for agentic development workflows in projects maintained by **exception.expert**.
+| Метод | Путь | Назначение |
+|-------|------|------------|
+| GET | `/ui` | Интерфейс контролёра |
+| POST | `/api/v1/pd/clean` | Предпросмотр очистки ПД |
+| POST | `/api/v1/classify` | Очистка ПД + классификация |
+| POST | `/api/v1/feedback` | Обратная связь контролёра |
+| POST | `/api/v1/feedback/{id}/apply` | Применить дообучение |
+| POST | `/api/v1/feedback/export` | Экспорт JSONL |
+| GET | `/api/v1/config` | Конфигурация сервиса |
 
----
+## Лицензия
 
-**License**: MIT (or project default)
-
-**Maintained with ❤️ for reliable autonomous development by exception.expert.**
-
-For questions or customization support, open an issue or refer to the detailed docs in the repo.
+MIT

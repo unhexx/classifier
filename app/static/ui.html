@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unhexx Classifier — Live Control</title>
+  <!-- Tailwind Play CDN for modern look -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Vue 3 global (CDN, zero build) for dynamic reactive framework with trading-terminal responsiveness -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    [v-cloak] { display: none; }
+    .entity-fio { background-color: #fef08c; color: #713f12; padding: 1px 4px; border-radius: 3px; }
+    .entity-email { background-color: #bae6fd; color: #0c4a6e; padding: 1px 4px; border-radius: 3px; }
+    .entity-phone { background-color: #bbf7d0; color: #14532d; padding: 1px 4px; border-radius: 3px; }
+    .entity-inn { background-color: #fde047; color: #713f12; padding: 1px 4px; border-radius: 3px; }
+    .entity-passport { background-color: #e0e7ff; color: #312e81; padding: 1px 4px; border-radius: 3px; }
+    .entity-snils { background-color: #f3e8ff; color: #581c87; padding: 1px 4px; border-radius: 3px; }
+    .entity-card { background-color: #fce7f3; color: #831843; padding: 1px 4px; border-radius: 3px; }
+    .entity-ip { background-color: #e0f2fe; color: #164e63; padding: 1px 4px; border-radius: 3px; }
+    .entity-address { background-color: #e7e5e4; color: #292524; padding: 1px 4px; border-radius: 3px; }
+    .entity { background-color: #7c2d12; color: #fed7aa; padding: 1px 4px; border-radius: 3px; } /* fallback */
+    .result-card { transition: all 0.1s ease-out; }
+    .history-item { transition: background-color 0.1s ease; }
+    .history-item:hover { background-color: #1f2937; }
+    .live-dot { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+    .failure-badge { font-size: 0.7rem; padding: 1px 6px; border-radius: 9999px; }
+  </style>
+</head>
+<body class="bg-zinc-950 text-zinc-200">
+  <div id="app" v-cloak>
+    <header class="border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-semibold tracking-tight">Unhexx Classifier</h1>
+        <p class="text-sm text-zinc-400">Real-time control • PD monitoring • Live retraining</p>
+      </div>
+      <div class="flex items-center gap-4 text-sm">
+        <div class="flex items-center gap-2 px-3 py-1 bg-zinc-900 rounded">
+          <div class="w-2 h-2 bg-emerald-400 rounded-full live-dot"></div>
+          <span class="text-emerald-400">Live</span>
+          <span class="text-zinc-400">({{ wsStatus }})</span>
+        </div>
+        <div class="flex items-center gap-3 text-xs text-zinc-400">
+          <span>classif: <strong class="text-white">{{ stats.classifications }}</strong></span>
+          <span>rate: <strong class="text-emerald-400">{{ (liveMetrics.rate_per_min || 0).toFixed(1) }}/min</strong></span>
+          <span>avg: <strong class="text-white">{{ (liveMetrics.avg_processing_ms || 0).toFixed(0) }}ms</strong></span>
+          <span>pd: <strong class="text-white">{{ stats.pdCleaned || liveMetrics.pd_cleaned }}</strong></span>
+          <span>ws: <strong class="text-white">{{ liveMetrics.ws_clients || 0 }}</strong></span>
+        </div>
+      </div>
+    </header>
+
+    <nav class="flex border-b border-zinc-800 px-6 bg-zinc-950 sticky top-0 z-10">
+      <button @click="tab = 'pd'" :class="tabClass('pd')">Очистка ПД</button>
+      <button @click="tab = 'classify'" :class="tabClass('classify')">Классификация</button>
+      <button @click="tab = 'history'" :class="tabClass('history')">Live История <span class="text-[10px] align-super text-emerald-400">●</span></button>
+      <button @click="tab = 'feedback'" :class="tabClass('feedback')">Обратная связь</button>
+    </nav>
+
+    <main class="p-6 max-w-6xl mx-auto">
+      <!-- PD TAB -->
+      <div v-if="tab === 'pd'" class="space-y-4">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+          <label class="block text-sm text-zinc-400 mb-2">Текст для проверки ПД</label>
+          <textarea v-model="pdInput" rows="3" class="w-full bg-zinc-950 border border-zinc-700 rounded p-3 text-sm font-mono" placeholder="Иванов И.И. +7-999-123-45-67 admin@corp.ru ..."></textarea>
+          <button @click="runPdClean" class="mt-3 px-5 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-medium">Проверить очистку</button>
+        </div>
+
+        <div v-if="pdResult" class="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+          <div class="flex gap-4 mb-4">
+            <div class="text-sm">Найдено ПД: <span class="font-semibold text-emerald-400">{{ pdResult.entity_count }}</span></div>
+            <div class="text-sm">Время: <span class="font-semibold">{{ pdResult.processing_time_ms }} мс</span></div>
+          </div>
+          <div class="mb-3 text-sm text-zinc-400">Обнаруженные сущности (цвета по типу)</div>
+          <div class="bg-zinc-950 p-4 rounded font-mono text-sm leading-relaxed" v-html="highlightPd(pdResult.original_text, pdResult.entities)"></div>
+          <div class="mt-4">
+            <div class="text-sm text-zinc-400 mb-1">Очищенный текст</div>
+            <pre class="bg-zinc-950 p-3 rounded text-sm overflow-auto">{{ pdResult.cleaned_text }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLASSIFY TAB -->
+      <div v-if="tab === 'classify'" class="space-y-4">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label class="block text-sm text-zinc-400 mb-1">Справочник</label>
+              <select v-model="clsCatalog" class="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-sm">
+                <option value="servers">servers</option>
+                <option value="network">network</option>
+                <option value="automotive">automotive</option>
+                <option value="industrial">industrial</option>
+                <option value="facilities">facilities</option>
+              </select>
+            </div>
+            <div class="md:col-span-3">
+              <label class="block text-sm text-zinc-400 mb-1">Контекст (описание проблемы)</label>
+              <textarea v-model="clsInput" rows="2" class="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-sm" placeholder="красный psu, сервер не включается, диск не виден в raid"></textarea>
+            </div>
+            <div class="md:col-span-4">
+              <label class="block text-sm text-zinc-400 mb-1">Предполагаемая типовая неисправность (presumed)</label>
+              <input v-model="clsPresumed" class="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-sm" placeholder="SRV-PSU-002 (опционально)">
+            </div>
+          </div>
+          <button @click="runClassify" class="mt-4 px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-sm font-medium">Классифицировать</button>
+          <span v-if="classifyLoading" class="ml-3 text-xs text-zinc-400">обработка...</span>
+        </div>
+
+        <div v-if="classifyResult" class="space-y-4">
+          <div class="text-sm text-zinc-400 flex gap-3">
+            <span>Типовая: <strong class="text-white">{{ classifyResult.typical_malfunction || '—' }}</strong></span>
+            <span v-if="classifyResult.presumed_typical_malfunction">Предполагаемая: <strong class="text-amber-400">{{ classifyResult.presumed_typical_malfunction }}</strong></span>
+          </div>
+
+          <div v-for="(m, idx) in classifyResult.matches" :key="idx" class="result-card bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+            <div class="flex justify-between items-start">
+              <div>
+                <div class="font-semibold">{{ m.code }} — {{ m.title }}</div>
+                <div v-if="m.failure_mode" class="inline-block mt-1 px-2 py-0.5 text-[10px] rounded bg-zinc-800 text-zinc-300 failure-badge">{{ m.failure_mode }}</div>
+              </div>
+              <div class="text-right text-xs">
+                <div class="text-emerald-400 font-medium">{{ (m.confidence * 100).toFixed(1) }}%</div>
+                <div class="text-[10px] text-zinc-500">{{ m.category }}</div>
+              </div>
+            </div>
+            <div class="mt-2 text-sm text-zinc-300">{{ m.description }}</div>
+
+            <div v-if="classifyResult.pd_entities && classifyResult.pd_entities.length" class="mt-3">
+              <div class="text-[10px] uppercase text-zinc-400 mb-1">Оригинал с выделением ПД</div>
+              <div class="bg-zinc-950 p-3 rounded text-sm font-mono leading-relaxed" v-html="highlightPd(classifyResult.original_context || classifyResult.context, classifyResult.pd_entities)"></div>
+            </div>
+
+            <div class="mt-3">
+              <div class="text-xs text-zinc-400 mb-1">Рекомендуемые действия</div>
+              <ul class="text-sm list-disc pl-5 space-y-0.5 text-zinc-300">
+                <li v-for="(act, i) in m.recommended_actions" :key="i">{{ act }}</li>
+              </ul>
+            </div>
+
+            <div class="mt-4 flex flex-wrap gap-2">
+              <button @click="quickConfirm(m)" class="px-3 py-1 text-xs bg-emerald-900 hover:bg-emerald-800 rounded">Подтвердить как типовую</button>
+              <button @click="quickFeedback(m)" class="px-3 py-1 text-xs bg-amber-900 hover:bg-amber-800 rounded">Быстрый feedback / дообучение</button>
+              <button @click="useAsPresumed(m)" class="px-3 py-1 text-xs bg-zinc-700 hover:bg-zinc-600 rounded">Использовать как presumed</button>
+              <button @click="copyText(m.title)" class="px-3 py-1 text-xs border border-zinc-700 hover:bg-zinc-900 rounded">Копировать название</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LIVE HISTORY TAB -->
+      <div v-if="tab === 'history'" class="space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-lg font-medium">Live история запросов <span class="text-xs text-emerald-400 align-super">WS + virtual</span></div>
+            <div class="text-[10px] text-zinc-500">Виртуальный скролл • клик = фрейм деталей • {{ virtualHistory.total }} записей (фильтр)</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <input v-model="historyFilter" placeholder="фильтр (каталог / неисправность / текст)" class="text-xs bg-zinc-950 border border-zinc-700 rounded px-2 py-1 w-64">
+            <select v-model="historySort" class="text-xs bg-zinc-950 border border-zinc-700 rounded px-2 py-1">
+              <option value="time">по времени</option>
+              <option value="conf">по conf</option>
+              <option value="catalog">по каталогу</option>
+            </select>
+            <button @click="loadHistory" class="text-xs px-3 py-1 border border-zinc-700 rounded hover:bg-zinc-900">Обновить</button>
+            <button @click="closeInfoFrame" v-if="selectedHistoryId" class="text-xs px-2 py-1 bg-zinc-800 hover:bg-zinc-700 rounded">Закрыть фрейм</button>
+          </div>
+        </div>
+
+        <!-- Metrics dashboard row (live from WS) -->
+        <div class="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
+          <div class="bg-zinc-900 border border-zinc-800 rounded p-2">
+            <div class="text-zinc-400">Classifications</div>
+            <div class="text-xl font-semibold">{{ liveMetrics.classifications || stats.classifications }}</div>
+          </div>
+          <div class="bg-zinc-900 border border-zinc-800 rounded p-2">
+            <div class="text-zinc-400">Rate / min</div>
+            <div class="text-xl font-semibold text-emerald-400">{{ (liveMetrics.rate_per_min || 0).toFixed(1) }}</div>
+          </div>
+          <div class="bg-zinc-900 border border-zinc-800 rounded p-2">
+            <div class="text-zinc-400">Avg proc</div>
+            <div class="text-xl font-semibold">{{ (liveMetrics.avg_processing_ms || 0) }} ms</div>
+          </div>
+          <div class="bg-zinc-900 border border-zinc-800 rounded p-2">
+            <div class="text-zinc-400">PD cleaned</div>
+            <div class="text-xl font-semibold">{{ liveMetrics.pd_cleaned || stats.pdCleaned }}</div>
+          </div>
+          <div class="bg-zinc-900 border border-zinc-800 rounded p-2 col-span-1">
+            <div class="text-zinc-400 mb-0.5">Top catalogs</div>
+            <div class="flex flex-wrap gap-1">
+              <span v-for="(c, k) in (liveMetrics.catalog_counts || {})" :key="k" class="px-1.5 py-0 bg-zinc-800 rounded text-[10px]">{{ k }}:{{ c }}</span>
+            </div>
+          </div>
+          <div class="bg-zinc-900 border border-zinc-800 rounded p-2">
+            <div class="text-zinc-400 mb-0.5">PD types</div>
+            <div class="flex flex-wrap gap-1 text-[10px]">
+              <span v-for="(c, k) in (liveMetrics.pd_type_counts || {})" :key="k" class="px-1 py-px bg-zinc-800 rounded">{{ k }}:{{ c }}</span>
+              <span v-if="!Object.keys(liveMetrics.pd_type_counts||{}).length" class="text-zinc-500">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Virtual scroll history + side Info Frame layout -->
+        <div class="flex gap-3 items-start">
+          <!-- Virtualized list -->
+          <div class="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+            <div class="bg-zinc-950 text-zinc-400 text-[10px] px-3 py-1.5 border-b border-zinc-800 flex gap-2">
+              <div class="w-20">Время</div>
+              <div class="w-24">Каталог</div>
+              <div class="flex-1">Типовая / Failure Mode</div>
+              <div class="w-14 text-right">Conf</div>
+              <div class="w-10 text-right">ПД</div>
+              <div class="w-20"></div>
+            </div>
+
+            <div id="history-scroll" class="overflow-auto" style="max-height: 460px; min-height: 240px;" 
+                 @scroll="onHistoryScroll" ref="histScroll" @resize="updateContainerSize">
+              <!-- top spacer -->
+              <div :style="{ height: virtualHistory.topPad + 'px' }"></div>
+
+              <!-- visible rows only -->
+              <div v-for="item in virtualHistory.visible" :key="item.id || item.created_at"
+                   :class="['history-item flex items-center px-3 py-1.5 text-sm border-b border-zinc-800 cursor-pointer hover:bg-zinc-800', 
+                           ((item.id || item.timestamp) == selectedHistoryId ? 'bg-zinc-800 ring-1 ring-emerald-500/60' : '')]"
+                   @click="selectHistoryItem(item)">
+                <div class="w-20 text-xs text-zinc-400 tabular-nums">{{ formatTime(item.created_at || item.timestamp) }}</div>
+                <div class="w-24 font-medium truncate pr-1">{{ item.catalog_name || item.catalog || '—' }}</div>
+                <div class="flex-1 truncate pr-2">
+                  <span>{{ item.typical_malfunction || (item.top_matches?.[0]?.title) || '—' }}</span>
+                  <span v-if="item.failure_mode || item.top_matches?.[0]?.failure_mode" class="ml-1.5 px-1.5 py-px text-[9px] rounded bg-zinc-800 text-zinc-400 align-middle">{{ item.failure_mode || item.top_matches?.[0]?.failure_mode }}</span>
+                </div>
+                <div class="w-14 text-right font-mono text-emerald-400 tabular-nums">{{ item.top_confidence ? (item.top_confidence*100).toFixed(0) : '—' }}%</div>
+                <div class="w-10 text-right tabular-nums text-xs">{{ (item.pd_entities || []).length || item.pd_count || 0 }}</div>
+                <div class="w-20 text-right">
+                  <button @click.stop="quickFeedbackFromHistory(item)" class="text-[10px] px-1.5 py-px bg-amber-900 hover:bg-amber-800 rounded">retrain</button>
+                </div>
+              </div>
+
+              <!-- bottom spacer -->
+              <div :style="{ height: virtualHistory.bottomPad + 'px' }"></div>
+
+              <div v-if="filteredHistory.length === 0" class="p-8 text-center text-zinc-500 text-sm">
+                Нет записей по фильтру. Выполните классификацию.
+              </div>
+            </div>
+            <div class="text-[10px] px-3 py-1 text-zinc-500 bg-zinc-950 border-t border-zinc-800">virtual: рендер {{ virtualHistory.visible.length }} / {{ virtualHistory.total }} • стрелки ↑↓ для навигации, Enter/click открывает фрейм</div>
+          </div>
+
+          <!-- Interactive Info Frame (side panel, no navigation) -->
+          <div v-if="selectedItem" class="w-96 shrink-0 bg-zinc-900 border border-zinc-700 rounded-xl p-3 text-sm shadow-2xl sticky top-2 max-h-[520px] overflow-auto">
+            <div class="flex justify-between items-center mb-2">
+              <div class="font-semibold text-emerald-300">Инфо-фрейм объекта</div>
+              <button @click="closeInfoFrame" class="text-xs px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 rounded">✕</button>
+            </div>
+
+            <div class="text-[11px] text-zinc-400 mb-2">
+              {{ selectedItem.catalog_name || selectedItem.catalog }} • {{ formatTime(selectedItem.created_at) }}
+              <span v-if="selectedItem.processing_time_ms" class="ml-1 text-zinc-500">· {{ selectedItem.processing_time_ms }}ms</span>
+            </div>
+
+            <!-- Overview -->
+            <div class="mb-3">
+              <div class="uppercase text-[10px] tracking-wider text-zinc-400 mb-0.5">Типовая неисправность</div>
+              <div class="font-medium">{{ selectedItem.typical_malfunction || (selectedItem.top_matches && selectedItem.top_matches[0] && selectedItem.top_matches[0].title) || '—' }}</div>
+              <div v-if="selectedItem.presumed_typical_malfunction" class="text-amber-400 text-xs">presumed: {{ selectedItem.presumed_typical_malfunction }}</div>
+            </div>
+
+            <div class="mb-3" v-if="selectedItem.failure_mode || (selectedItem.top_matches && selectedItem.top_matches[0] && selectedItem.top_matches[0].failure_mode)">
+              <span class="text-[10px] px-2 py-0.5 bg-zinc-800 rounded">failure_mode: {{ selectedItem.failure_mode || selectedItem.top_matches[0].failure_mode }}</span>
+            </div>
+
+            <!-- PD Interactive -->
+            <div v-if="selectedItem.pd_entities && selectedItem.pd_entities.length" class="mb-3">
+              <div class="uppercase text-[10px] tracking-widest text-zinc-400 mb-1">ПД (интерактивные маркеры — клик = копировать)</div>
+              <div class="bg-zinc-950 p-2 rounded text-xs font-mono leading-snug mb-1.5" v-html="highlightPd(selectedItem.original_context || selectedItem.context, selectedItem.pd_entities)"></div>
+              <div class="flex flex-wrap gap-1">
+                <span v-for="(ent, ei) in selectedItem.pd_entities" :key="ei"
+                      @click="onEntityClick(ent, selectedItem.context)"
+                      class="cursor-pointer px-1.5 py-0.5 rounded text-[10px] border border-zinc-700 hover:bg-zinc-800"
+                      :class="PD_COLORS[ent.entity_type] ? '' : ''"
+                      style="background:#1f2937">
+                  {{ ent.entity_type }}: {{ (ent.original||'').slice(0,18) }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Quick matches summary -->
+            <div class="mb-3">
+              <div class="uppercase text-[10px] text-zinc-400 mb-1">Top matches</div>
+              <div v-for="(m,i) in (selectedItem.top_matches || selectedItem.matches || []).slice(0,3)" :key="i" class="text-xs py-0.5 border-b border-zinc-800 last:border-0">
+                <span class="font-mono text-emerald-400">{{ (m.confidence*100).toFixed(0) }}%</span> {{ m.code }} — {{ m.title }}
+                <span v-if="m.failure_mode" class="ml-1 text-[9px] text-zinc-500">{{ m.failure_mode }}</span>
+              </div>
+              <div v-if="! (selectedItem.top_matches || []).length" class="text-xs text-zinc-500">—</div>
+            </div>
+
+            <!-- Frame actions -->
+            <div class="flex flex-wrap gap-1.5 pt-1 border-t border-zinc-800">
+              <button @click="quickFeedbackFromFrame()" class="text-xs px-3 py-1 bg-amber-900 hover:bg-amber-700 rounded">Быстрый feedback / retrain</button>
+              <button @click="usePresumedFromFrame()" class="text-xs px-3 py-1 bg-zinc-800 hover:bg-zinc-700 rounded">Как presumed</button>
+              <button @click="copyText( (selectedItem.top_matches && selectedItem.top_matches[0] && selectedItem.top_matches[0].title) || selectedItem.typical_malfunction || '' )" class="text-xs px-3 py-1 border border-zinc-700 rounded">Копировать</button>
+              <button @click="closeInfoFrame" class="ml-auto text-xs px-2 py-1">Закрыть</button>
+            </div>
+
+            <div class="text-[10px] text-zinc-500 mt-2">Контекст (оригинал):</div>
+            <div class="bg-black/40 p-2 rounded text-xs font-mono max-h-20 overflow-auto">{{ (selectedItem.original_context || selectedItem.context || '').slice(0, 240) }}</div>
+          </div>
+        </div>
+
+        <div v-if="!selectedItem && filteredHistory.length > 50" class="text-[10px] text-emerald-400/70">Совет: используйте виртуальный список — скролл плавный даже на 1000+ записях. Клик по строке открывает детальный фрейм справа.</div>
+      </div>
+
+      <!-- FEEDBACK TAB -->
+      <div v-if="tab === 'feedback'" class="max-w-2xl space-y-4">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+          <label class="block text-sm text-zinc-400 mb-1">Исходный текст</label>
+          <textarea v-model="fbOriginal" rows="2" class="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-sm"></textarea>
+
+          <label class="block text-sm text-zinc-400 mt-3 mb-1">Результат модели</label>
+          <textarea v-model="fbModel" rows="2" class="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-sm"></textarea>
+
+          <label class="block text-sm text-zinc-400 mt-3 mb-1">Исправленный (контролёр)</label>
+          <textarea v-model="fbCorrected" rows="2" class="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-sm"></textarea>
+
+          <div class="grid grid-cols-2 gap-4 mt-3">
+            <div>
+              <label class="block text-sm text-zinc-400 mb-1">Тип ПД</label>
+              <select v-model="fbType" class="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-sm">
+                <option value="fio">ФИО</option>
+                <option value="phone">Телефон</option>
+                <option value="email">Email</option>
+                <option value="inn">ИНН</option>
+                <option value="passport">Паспорт</option>
+                <option value="snils">СНИЛС</option>
+                <option value="card">Карта</option>
+                <option value="ip">IP</option>
+                <option value="address">Адрес</option>
+                <option value="custom">Другое</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm text-zinc-400 mb-1">Пропущенный фрагмент</label>
+              <input v-model="fbMissed" class="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-sm" placeholder="Сидоров А.А.">
+            </div>
+          </div>
+
+          <button @click="submitFeedback" class="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm">Отправить исправление</button>
+        </div>
+
+        <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+          <div class="flex justify-between items-center mb-3">
+            <h3 class="font-medium">Очередь обратной связи (быстрые действия)</h3>
+            <button @click="loadFeedback" class="text-xs px-2 py-1 border border-zinc-700 rounded">Обновить</button>
+          </div>
+          <div class="space-y-2 text-sm">
+            <div v-for="f in feedbackList" :key="f.id" class="flex justify-between bg-zinc-950 p-2 rounded items-center">
+              <div>
+                <span class="text-amber-400">{{ f.entity_type }}</span> — {{ f.missed_fragment || f.original_text.slice(0,60) }}...
+                <span class="text-xs ml-2" :class="f.status === 'applied' ? 'text-emerald-400' : 'text-amber-400'">{{ f.status }}</span>
+              </div>
+              <button v-if="f.status === 'pending'" @click="applyFeedback(f.id)" class="px-3 py-0.5 text-xs bg-emerald-800 hover:bg-emerald-700 rounded">Применить (дообучить)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const { createApp } = Vue;
+
+    // Color map for PD entity types (high contrast for quick visual scanning)
+    const PD_COLORS = {
+      fio: 'entity-fio',
+      email: 'entity-email',
+      phone: 'entity-phone',
+      inn: 'entity-inn',
+      passport: 'entity-passport',
+      snils: 'entity-snils',
+      card: 'entity-card',
+      ip: 'entity-ip',
+      address: 'entity-address',
+      custom: 'entity'
+    };
+
+    createApp({
+      data() {
+        return {
+          tab: 'classify',
+          ws: null,
+          wsStatus: 'disconnected',
+
+          // PD tab
+          pdInput: 'Иванов Иван Иванович, +79991234567, email admin@corp.ru — сервер не включается',
+          pdResult: null,
+
+          // Classify tab
+          clsCatalog: 'servers',
+          clsInput: 'красный psu, сервер не включается, диск не виден в raid',
+          clsPresumed: '',
+          classifyResult: null,
+          classifyLoading: false,
+
+          // Live history + virtual scroll + selection
+          liveHistory: [],
+          historyFilter: '',
+          historySort: 'time', // time | conf | catalog
+          selectedHistoryId: null,
+          historyDetail: null, // legacy compat
+          // Virtual scroll state
+          scrollTop: 0,
+          containerHeight: 420,
+          itemHeight: 52, // approx row height incl border
+          overscan: 6,
+
+          // Feedback
+          fbOriginal: '',
+          fbModel: '',
+          fbCorrected: '',
+          fbType: 'fio',
+          fbMissed: '',
+          feedbackList: [],
+
+          // Global live stats + metrics from WS/backend
+          stats: { classifications: 0, pdCleaned: 0 },
+          liveMetrics: { classifications: 0, pd_cleaned: 0, rate_per_min: 0, avg_processing_ms: 0, catalog_counts: {}, pd_type_counts: {}, ws_clients: 0 }
+        }
+      },
+      computed: {
+        tabClass() {
+          return (name) => this.tab === name 
+            ? 'px-4 py-2 text-sm font-medium border-b-2 border-white text-white' 
+            : 'px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200';
+        },
+        filteredHistory() {
+          let list = [...this.liveHistory];
+          const q = (this.historyFilter || '').toLowerCase().trim();
+          if (q) {
+            list = list.filter(it => {
+              const hay = [
+                it.catalog_name || it.catalog || '',
+                it.typical_malfunction || (it.top_matches && it.top_matches[0] && it.top_matches[0].title) || '',
+                it.failure_mode || (it.top_matches && it.top_matches[0] && it.top_matches[0].failure_mode) || '',
+                it.context || ''
+              ].join(' ').toLowerCase();
+              return hay.includes(q);
+            });
+          }
+          // sort
+          if (this.historySort === 'conf') {
+            list.sort((a, b) => (b.top_confidence || 0) - (a.top_confidence || 0));
+          } else if (this.historySort === 'catalog') {
+            list.sort((a, b) => (a.catalog_name || '').localeCompare(b.catalog_name || ''));
+          } else {
+            // time desc (newest first) - assume already or sort by created
+            list.sort((a, b) => {
+              const ta = a.created_at || a.timestamp || '';
+              const tb = b.created_at || b.timestamp || '';
+              return tb.localeCompare(ta);
+            });
+          }
+          return list;
+        },
+        virtualHistory() {
+          const items = this.filteredHistory;
+          const startIdx = Math.max(0, Math.floor(this.scrollTop / this.itemHeight) - this.overscan);
+          const visibleCount = Math.ceil(this.containerHeight / this.itemHeight) + this.overscan * 2;
+          const endIdx = Math.min(items.length, startIdx + visibleCount);
+          const visible = items.slice(startIdx, endIdx);
+          const topPad = startIdx * this.itemHeight;
+          const bottomPad = (items.length - endIdx) * this.itemHeight;
+          return { visible, topPad, bottomPad, total: items.length };
+        },
+        selectedItem() {
+          if (!this.selectedHistoryId) return null;
+          return this.liveHistory.find(it => (it.id || it.timestamp) == this.selectedHistoryId) || this.historyDetail;
+        }
+      },
+      methods: {
+        formatTime(ts) {
+          if (!ts) return '—';
+          const d = new Date(ts);
+          return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        },
+
+        // Reusable colored PD highlighter (supports multiple types)
+        highlightPd(text, entities) {
+          if (!text || !entities || !entities.length) return this.escapeHtml(text || '');
+          let result = '';
+          let last = 0;
+          const sorted = [...entities].sort((a, b) => a.start - b.start);
+          for (const e of sorted) {
+            if (e.start > last) {
+              result += this.escapeHtml(text.slice(last, e.start));
+            }
+            const cls = PD_COLORS[e.entity_type] || 'entity';
+            const frag = this.escapeHtml(text.slice(e.start, e.end));
+            result += `<span class="${cls}">${frag}</span>`;
+            last = e.end;
+          }
+          if (last < text.length) result += this.escapeHtml(text.slice(last));
+          return result;
+        },
+
+        escapeHtml(str) {
+          return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+        },
+
+        async connectWS() {
+          const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+          const url = `${proto}://${location.host}/ws/events`;
+          this.ws = new WebSocket(url);
+          this.wsStatus = 'connecting';
+
+          this.ws.onopen = () => { this.wsStatus = 'connected'; };
+          this.ws.onclose = () => { this.wsStatus = 'disconnected'; setTimeout(() => this.connectWS(), 2500); };
+          this.ws.onerror = () => { this.wsStatus = 'error'; };
+
+          this.ws.onmessage = (ev) => {
+            try {
+              const msg = JSON.parse(ev.data);
+              if (msg.type === 'new_classification') {
+                const d = msg.data || {};
+                const norm = {
+                  ...d,
+                  id: d.id || ('live-' + Date.now()),
+                  catalog_name: d.catalog_name || d.catalog,
+                  typical_malfunction: d.typical_malfunction || (d.top_matches && d.top_matches[0] && d.top_matches[0].title),
+                  failure_mode: d.failure_mode || (d.top_matches && d.top_matches[0] && d.top_matches[0].failure_mode),
+                  top_confidence: d.top_confidence != null ? d.top_confidence : (d.top_matches && d.top_matches[0] && d.top_matches[0].confidence),
+                  pd_entities: d.pd_entities || [],
+                  processing_time_ms: d.processing_time_ms
+                };
+                this.liveHistory.unshift(norm);
+                if (this.liveHistory.length > 400) this.liveHistory.pop(); // allow more for virtual
+                this.stats.classifications = (this.stats.classifications || 0) + 1;
+              } else if (msg.type === 'metrics_update') {
+                if (msg.data) {
+                  this.liveMetrics = { ...this.liveMetrics, ...msg.data };
+                  if (msg.data.classifications != null) this.stats.classifications = msg.data.classifications;
+                  if (msg.data.pd_cleaned != null) this.stats.pdCleaned = msg.data.pd_cleaned;
+                }
+              }
+            } catch (e) {}
+          };
+        },
+
+        async runPdClean() {
+          const res = await fetch('/api/v1/pd/clean', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: this.pdInput, save_log: true })
+          });
+          this.pdResult = await res.json();
+          const added = (this.pdResult.entity_count || 0);
+          this.stats.pdCleaned = (this.stats.pdCleaned || 0) + added;
+          // optimistic local metrics
+          this.liveMetrics.pd_cleaned = (this.liveMetrics.pd_cleaned || 0) + added;
+        },
+
+        async runClassify() {
+          this.classifyLoading = true;
+          const body = {
+            catalog: this.clsCatalog,
+            context: this.clsInput,
+            top_k: 5,
+            presumed_typical_malfunction: this.clsPresumed || null
+          };
+          const res = await fetch('/api/v1/classify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          this.classifyResult = await res.json();
+          this.classifyLoading = false;
+
+          // optimistic push to live history (full shape)
+          if (this.classifyResult) {
+            const cr = this.classifyResult;
+            const top = cr.matches && cr.matches[0];
+            this.liveHistory.unshift({
+              id: 'opt-' + Date.now(),
+              catalog_name: cr.catalog || this.clsCatalog,
+              context: cr.context,
+              original_context: cr.original_context,
+              pd_entities: cr.pd_entities || [],
+              top_matches: cr.matches || [],
+              top_confidence: top ? top.confidence : null,
+              typical_malfunction: cr.typical_malfunction,
+              presumed_typical_malfunction: cr.presumed_typical_malfunction,
+              processing_time_ms: cr.processing_time_ms,
+              failure_mode: top ? top.failure_mode : null,
+              created_at: new Date().toISOString(),
+              pd_count: (cr.pd_entities || []).length
+            });
+            if (this.liveHistory.length > 400) this.liveHistory.pop();
+          }
+        },
+
+        quickConfirm(match) {
+          // Simple optimistic: set as presumed for next classify
+          this.clsPresumed = match.code || match.title;
+          alert('Подтверждено как типовая. Будет использовано как presumed в следующем запросе.');
+        },
+
+        quickFeedback(match) {
+          this.tab = 'feedback';
+          this.fbOriginal = this.classifyResult?.original_context || this.classifyResult?.context || this.clsInput;
+          this.fbModel = match.title;
+          this.fbCorrected = match.title; // controller can edit
+          this.fbType = 'custom';
+          this.fbMissed = '';
+        },
+
+        useAsPresumed(match) {
+          this.clsPresumed = match.code || match.title;
+        },
+
+        async quickFeedbackFromHistory(item) {
+          this.tab = 'feedback';
+          this.fbOriginal = item.context || '';
+          this.fbModel = item.typical_malfunction || (item.top_match && item.top_match.title) || '';
+          this.fbCorrected = this.fbModel;
+        },
+
+        copyText(text) {
+          navigator.clipboard.writeText(text);
+        },
+
+        async loadHistory() {
+          const res = await fetch('/api/v1/history?limit=200');
+          const data = await res.json();
+          this.liveHistory = data.map(d => ({
+            ...d,
+            // normalize common fields for UI
+            catalog_name: d.catalog_name || d.catalog,
+            typical_malfunction: d.typical_malfunction || (d.top_matches?.[0]?.title),
+            failure_mode: d.failure_mode || (d.top_matches?.[0]?.failure_mode),
+            top_confidence: d.top_confidence != null ? d.top_confidence : (d.top_matches?.[0]?.confidence),
+            pd_entities: d.pd_entities || [],
+            processing_time_ms: d.processing_time_ms
+          }));
+        },
+
+        // Virtual scroll handlers
+        onHistoryScroll(e) {
+          this.scrollTop = e.target.scrollTop;
+        },
+        setContainerHeight(el) {
+          if (el) {
+            // allow dynamic but fixed reasonable default for perf
+            this.containerHeight = Math.min(520, Math.max(280, el.clientHeight || 420));
+          }
+        },
+        updateContainerSize() {
+          // called on resize / mount
+          const container = document.getElementById('history-scroll');
+          if (container) this.containerHeight = Math.min(520, Math.max(280, container.clientHeight || 420));
+        },
+
+        selectHistoryItem(item) {
+          const key = item.id || item.timestamp || (item.created_at + (item.catalog_name||''));
+          this.selectedHistoryId = key;
+          this.historyDetail = item; // compat
+          // ensure in view if needed
+        },
+        closeInfoFrame() {
+          this.selectedHistoryId = null;
+          this.historyDetail = null;
+        },
+
+        // For interactive PD in frame: click entity -> simple alert with details + copy
+        onEntityClick(ent, fullText) {
+          const msg = `${ent.entity_type}: "${ent.original}" → "${ent.replacement}" (pos ${ent.start}-${ent.end})`;
+          navigator.clipboard.writeText(ent.original || '').catch(()=>{});
+          // brief visual flash or toast-less: console + alert for explicit
+          alert(msg + '\n(фрагмент скопирован)');
+        },
+
+        // Quick action from inside frame
+        quickFeedbackFromFrame(item) {
+          const it = item || this.selectedItem;
+          if (!it) return;
+          this.tab = 'feedback';
+          this.fbOriginal = it.original_context || it.context || '';
+          const top = (it.top_matches && it.top_matches[0]) || {};
+          this.fbModel = it.typical_malfunction || top.title || '';
+          this.fbCorrected = this.fbModel;
+          this.closeInfoFrame();
+        },
+        usePresumedFromFrame(item) {
+          const it = item || this.selectedItem;
+          if (!it) return;
+          const top = (it.top_matches && it.top_matches[0]) || {};
+          this.clsPresumed = (top.code || top.title || it.typical_malfunction || '');
+          this.tab = 'classify';
+          this.closeInfoFrame();
+        },
+
+        showHistoryDetail(item) {
+          // keep legacy but prefer select
+          this.selectHistoryItem(item);
+        },
+
+        async submitFeedback() {
+          const body = {
+            original_text: this.fbOriginal,
+            model_output: this.fbModel,
+            corrected_text: this.fbCorrected,
+            entity_type: this.fbType,
+            missed_fragment: this.fbMissed || null,
+            controller_notes: null
+          };
+          await fetch('/api/v1/feedback', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+          await this.loadFeedback();
+          // optimistic clear
+          this.fbCorrected = ''; this.fbMissed = '';
+        },
+
+        async loadFeedback() {
+          const res = await fetch('/api/v1/feedback?limit=30');
+          this.feedbackList = await res.json();
+        },
+
+        async applyFeedback(id) {
+          await fetch(`/api/v1/feedback/${id}/apply`, { method: 'POST' });
+          await this.loadFeedback();
+        },
+
+        async loadMetrics() {
+          try {
+            const res = await fetch('/api/v1/metrics');
+            const m = await res.json();
+            this.liveMetrics = { ...this.liveMetrics, ...m };
+            if (m.classifications != null) this.stats.classifications = m.classifications;
+            if (m.pd_cleaned != null) this.stats.pdCleaned = m.pd_cleaned;
+          } catch(e){}
+        },
+
+        async initWS() {
+          await this.connectWS();
+          await this.loadHistory();
+          await this.loadMetrics();
+          setTimeout(() => this.updateContainerSize(), 120);
+        },
+
+        // Keyboard support for history selection (arrows)
+        handleKeyNav(e) {
+          if (this.tab !== 'history') return;
+          const list = this.filteredHistory;
+          if (!list.length) return;
+          let idx = list.findIndex(it => (it.id || it.timestamp) == this.selectedHistoryId);
+          if (e.key === 'ArrowDown') {
+            idx = (idx < 0) ? 0 : Math.min(list.length-1, idx+1);
+            this.selectHistoryItem(list[idx]);
+            e.preventDefault();
+          } else if (e.key === 'ArrowUp') {
+            idx = (idx < 0) ? 0 : Math.max(0, idx-1);
+            this.selectHistoryItem(list[idx]);
+            e.preventDefault();
+          } else if (e.key === 'Escape') {
+            this.closeInfoFrame();
+          } else if ((e.key === 'Enter' || e.key === ' ') && idx >= 0) {
+            this.selectHistoryItem(list[idx]);
+          }
+        }
+      },
+      async mounted() {
+        await this.initWS();
+        await this.loadFeedback();
+
+        // keyboard global for arrows when history tab focused
+        window.addEventListener('keydown', this.handleKeyNav);
+
+        // resize for virtual container
+        window.addEventListener('resize', () => this.updateContainerSize());
+        // initial size after paint
+        setTimeout(() => this.updateContainerSize(), 80);
+
+        // initial sample classify hint
+        // this.clsInput = 'красный psu, сервер не включается';
+      },
+      beforeUnmount() {
+        window.removeEventListener('keydown', this.handleKeyNav);
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>

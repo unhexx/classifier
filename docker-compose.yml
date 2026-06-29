@@ -1,0 +1,27 @@
+services:
+  classifier:
+    build: .
+    image: unhexx-classifier:0.3.0
+    container_name: unhexx-classifier
+    ports:
+      - "${PORT:-8123}:${PORT:-8123}"
+    environment:
+      - PORT=${PORT:-8123}
+      - DATABASE_URL=sqlite:///./data/classifier.db
+      - ENABLE_PD_CLEANING=true
+      - ENABLE_PD_CLEANING_LOG=true
+      - ENABLE_CLASSIFICATION_LOGGING=true
+      - PD_MODEL_VERSION=pd-cpu-v1
+      - LOG_LEVEL=INFO
+    volumes:
+      - classifier-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,urllib.request; urllib.request.urlopen(f'http://localhost:{os.environ.get(\"PORT\",\"8123\")}/health', timeout=2)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  classifier-data:

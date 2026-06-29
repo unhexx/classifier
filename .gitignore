@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Локальная БД классификатора (генерируется из сидов)
+data/*.db
+data/*.db-journal
+data/training/
