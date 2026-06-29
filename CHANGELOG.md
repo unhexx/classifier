@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.0.0] — 2026-06-29
+
+### Added
+- Продвинутый live UI контролёра (Vue 3 + Tailwind CDN): вкладка Live История
+- Virtual scroll для истории (спейсеры, видимый диапазон, ~30 DOM-элементов даже на 1000+ записях)
+- Интерактивные элементы списка + боковой info-frame (без перехода на страницы): детали объекта, failure_mode, presumed, интерактивные цветные маркеры ПД (клик — копировать), быстрые действия retrain/presumed
+- Расширенные live-метрики (rate/min, avg processing, breakdowns по каталогам и типам ПД, ws_clients, totals). Реал-тайм через WS + /api/v1/metrics
+- Обогащённый WS broadcast (new_classification + metrics_update) с полными данными (pd_entities, top_matches и т.д.)
+- История и метрики в реальном времени, фильтры/сортировка, клавиатурная навигация
+
+### Changed
+- Расширена модель HistoryEntry и история API для поддержки UI-фрейма
+- Добавлен LiveStats (in-memory) в main.py
+- Версия 0.3.0 → 1.0.0 (production-ready локальный классификатор с про UI)
+
 ## [0.3.0] — 2026-06-25
 
 ### Added
