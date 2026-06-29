@@ -1,7 +1,7 @@
 services:
   classifier:
     build: .
-    image: unhexx-classifier:0.3.0
+    image: unhexx-classifier:1.0.0
     container_name: unhexx-classifier
     ports:
       - "${PORT:-8123}:${PORT:-8123}"

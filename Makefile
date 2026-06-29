@@ -1,7 +1,7 @@
 .PHONY: install test lint docker-build docker-up docker-run docker-smoke docker-down docker-setup seed serve
 
 IMAGE_NAME := unhexx-classifier
-IMAGE_TAG := 0.3.0
+IMAGE_TAG := 1.0.0
 PORT ?= 8123
 DOCKER := ./scripts/docker-wrap.sh
 BASE_URL := http://localhost:$(PORT)
