@@ -22,6 +22,7 @@ def _fault_to_read(fault) -> FaultRead:
         symptoms=fault.symptoms or [],
         keywords=fault.keywords or [],
         category=fault.category,
+        failure_mode=fault.failure_mode,
         recommended_actions=fault.recommended_actions or [],
         meta=fault.meta,
     )

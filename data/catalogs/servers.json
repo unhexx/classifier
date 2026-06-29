@@ -1,426 +1,387 @@
 {
   "name": "servers",
-  "version": "2.0",
-  "description": "Типовые неисправности серверного и IT-оборудования (стойки, блейды, хосты)",
+  "version": "3.1",
+  "description": "Типовые неисправности серверного и IT-оборудования (стойки, блейды, хосты). Расширенный справочник по практикам FMEA/ITIL.",
   "faults": [
     {
-      "code": "SRV-DISK-001",
-      "title": "Жёсткий диск (SSD/HDD) не определяется",
-      "description": "Сервер не видит накопитель в BIOS, в ОС или в RAID-контроллере.",
-      "symptoms": ["диск не виден", "не определяется", "ошибка загрузки 0x7b", "missing disk"],
-      "keywords": ["диск", "hdd", "ssd", "не определяется", "sata", "raid", "bios", "missing"],
-      "category": "Хранение данных",
-      "recommended_actions": [
-        "Проверить кабели питания и SATA/SAS",
-        "Переподключить диск на другой порт контроллера",
-        "Проверить в другом сервере или на стенде",
-        "Запустить диагностику производителя (SeaTools, Samsung Magician и т.д.)",
-        "Проверить события в iDRAC/iLO и логах RAID"
-      ]
+      "code": "SRV-PSU-001",
+      "title": "Отказ одного блока питания (PSU)",
+      "description": "Сервер работает на одном PSU, второй отказал или не подключён.",
+      "failure_mode": "Полный отказ",
+      "symptoms": ["красный индикатор psu", "power supply failed", "один блок питания", "psu redundancy lost"],
+      "keywords": ["psu", "питание", "бп", "power supply", "красный", "failed", "redundancy"],
+      "category": "Питание",
+      "recommended_actions": ["Проверить индикацию на обоих блоках", "Переставить БП местами", "Проверить розетку/PDU", "Заменить неисправный БП", "Проверить потребление в BMC"]
     },
     {
       "code": "SRV-PSU-002",
-      "title": "Отказ блока питания (PSU)",
-      "description": "Сервер не включается или внезапно выключается, горит красный индикатор PSU.",
-      "symptoms": ["не включается", "выключается сам", "красный индикатор psu", "no power"],
-      "keywords": ["питание", "psu", "бп", "не включается", "красный", "power supply"],
+      "title": "Полная потеря питания / сервер не включается",
+      "description": "Сервер не реагирует на кнопку питания, нет индикации.",
+      "failure_mode": "Полный отказ",
+      "symptoms": ["не включается", "нет питания", "нет индикации", "dead server", "no power"],
+      "keywords": ["питание", "psu", "не включается", "power", "dead", "no power"],
       "category": "Питание",
-      "recommended_actions": [
-        "Проверить индикацию на обоих БП",
-        "Переставить БП местами",
-        "Проверить розетку и PDU",
-        "Заменить неисправный БП",
-        "Проверить потребление и события в BMC"
-      ]
+      "recommended_actions": ["Проверить розетку, PDU и кабели", "Проверить оба БП", "Проверить кнопку и кабель материнки", "Проверить BMC dedicated порт", "Проверить на стенде"]
     },
     {
-      "code": "SRV-RAID-003",
-      "title": "Деградация или отказ RAID-массива",
-      "description": "Массив в degraded/rebuilding/failed состоянии, потеря производительности.",
+      "code": "SRV-DISK-001",
+      "title": "Жёсткий диск (SSD/HDD) не определяется",
+      "description": "Сервер не видит накопитель в BIOS, ОС или RAID.",
+      "failure_mode": "Полный отказ",
+      "symptoms": ["диск не виден", "не определяется", "ошибка загрузки 0x7b", "missing disk", "device not found"],
+      "keywords": ["диск", "hdd", "ssd", "не определяется", "sata", "sas", "raid", "bios", "missing"],
+      "category": "Хранение данных",
+      "recommended_actions": ["Проверить кабели питания и SATA/SAS", "Переподключить на другой порт", "Проверить на другом сервере", "Запустить диагностику производителя", "Проверить события в iDRAC/iLO"]
+    },
+    {
+      "code": "SRV-DISK-002",
+      "title": "Деградация RAID-массива",
+      "description": "Массив в degraded/rebuilding/failed, потеря производительности.",
+      "failure_mode": "Деградация",
       "symptoms": ["degraded", "rebuild", "ошибка raid", "потеря диска", "медленная работа"],
       "keywords": ["raid", "degraded", "rebuild", "массив", "megaraid", "perc"],
       "category": "Хранение данных",
-      "recommended_actions": [
-        "Проверить статус массива в утилите контроллера",
-        "Заменить отказавший диск на горячий spare",
-        "Запустить ребилд и мониторить",
-        "Проверить кабели бэксплейна",
-        "Сделать бэкап данных при первой возможности"
-      ]
+      "recommended_actions": ["Проверить статус в утилите контроллера", "Заменить диск на hot spare", "Запустить ребилд и мониторить", "Проверить кабели бэксплейна", "Сделать бэкап"]
     },
     {
-      "code": "SRV-CPU-004",
-      "title": "Перегрев процессора / троттлинг",
+      "code": "SRV-CPU-001",
+      "title": "Перегрев процессора / Thermal Throttling",
       "description": "Высокая температура CPU, троттлинг, неожиданные перезагрузки.",
-      "symptoms": ["высокая температура", "троттлинг", "шум вентиляторов", "перезагрузка"],
-      "keywords": ["cpu", "перегрев", "температура", "throttling", "fan"],
-      "category": "Охлаждение",
-      "recommended_actions": [
-        "Очистить пыль, проверить вентиляторы",
-        "Проверить термопасту и heatsink",
-        "Проверить профиль вентиляторов в BIOS/BMC",
-        "Проверить температуру в помещении и воздушный поток",
-        "Обновить прошивку BMC и BIOS"
-      ]
+      "failure_mode": "Деградация",
+      "symptoms": ["высокая температура cpu", "троттлинг", "шум вентиляторов", "перезагрузка", "thermal trip"],
+      "keywords": ["cpu", "перегрев", "температура", "throttling", "fan", "thermal"],
+      "category": "Охлаждение и вентиляция",
+      "recommended_actions": ["Очистить пыль, проверить вентиляторы", "Проверить термопасту и heatsink", "Проверить профиль вентиляторов в BIOS/BMC", "Проверить температуру в помещении", "Обновить прошивку BMC/BIOS"]
     },
     {
-      "code": "SRV-BOOT-005",
-      "title": "Не загружается ОС (синий экран / kernel panic)",
-      "description": "Сервер уходит в BSOD или kernel panic при загрузке или под нагрузкой.",
-      "symptoms": ["синий экран", "bsod", "kernel panic", "0x0000007b", "inaccessible boot device"],
-      "keywords": ["загрузка", "bsod", "panic", "0x7b", "boot device"],
-      "category": "Загрузка ОС",
-      "recommended_actions": [
-        "Проанализировать дамп памяти (WinDbg / crash dump)",
-        "Проверить диск и контроллер (см. SRV-DISK-001)",
-        "Отключить недавно добавленное оборудование",
-        "Запустить в безопасном режиме / recovery",
-        "Проверить драйверы хранения и обновления прошивок"
-      ]
+      "code": "SRV-MEM-001",
+      "title": "Ошибка оперативной памяти (ECC / Uncorrectable)",
+      "description": "Логи содержат ошибки памяти, сервер падает или нестабилен.",
+      "failure_mode": "Полный отказ",
+      "symptoms": ["ошибка ecc", "memory error", "uncorrectable", "синий экран", "dimm error"],
+      "keywords": ["память", "ram", "ecc", "dimm", "memory error", "uncorrectable"],
+      "category": "Процессор, память, контроллеры",
+      "recommended_actions": ["Прочитать точный слот из логов BMC", "Переставить модули для локализации", "Запустить MemTest / диагностику", "Заменить неисправный DIMM", "Проверить версию BIOS"]
     },
     {
-      "code": "SRV-MEM-006",
-      "title": "Ошибка оперативной памяти (ECC / uncorrectable)",
-      "description": "Логи содержат ошибки памяти, сервер падает или работает нестабильно.",
-      "symptoms": ["ошибка ecc", "memory error", "uncorrectable", "синий экран с кодом памяти"],
-      "keywords": ["память", "ram", "ecc", "dimm", "memory error"],
-      "category": "Память",
-      "recommended_actions": [
-        "Прочитать точный слот из логов BMC/iLO/iDRAC",
-        "Переставить модули для локализации",
-        "Запустить MemTest / встроенную диагностику",
-        "Заменить неисправный DIMM",
-        "Проверить версию прошивки BIOS"
-      ]
+      "code": "SRV-FAN-001",
+      "title": "Отказ вентилятора / Сбой охлаждения",
+      "description": "Вентиляторы не крутятся, повышенная температура шасси.",
+      "failure_mode": "Деградация",
+      "symptoms": ["вентилятор не крутится", "fan failure", "высокая температура", "fan speed 0"],
+      "keywords": ["вентилятор", "fan", "failure", "не крутится", "cooling"],
+      "category": "Охлаждение и вентиляция",
+      "recommended_actions": ["Проверить подключение вентилятора", "Заменить неисправный", "Проверить RPM в BMC", "Очистить от пыли", "Проверить температуру в стойке"]
     },
     {
-      "code": "SRV-FAN-007",
-      "title": "Отказ или остановка вентилятора",
-      "description": "Один или несколько вентиляторов не крутятся, повышенный шум или перегрев.",
-      "symptoms": ["вентилятор не крутится", "fan failure", "высокая температура"],
-      "keywords": ["вентилятор", "fan", "failure", "не крутится"],
-      "category": "Охлаждение",
-      "recommended_actions": [
-        "Проверить подключение вентилятора",
-        "Заменить неисправный вентилятор",
-        "Проверить RPM в мониторинге BMC",
-        "Очистить от пыли решётки и радиаторы"
-      ]
+      "code": "SRV-NIC-001",
+      "title": "Сетевой адаптер не поднимает линк",
+      "description": "Порт NIC не устанавливает линк, не виден в ОС.",
+      "failure_mode": "Полный отказ",
+      "symptoms": ["нет линка", "link down", "nic не виден", "no carrier", "port down"],
+      "keywords": ["nic", "сеть", "линк", "ethernet", "link down", "адаптер"],
+      "category": "Сетевое подключение / Связь",
+      "recommended_actions": ["Проверить патч-корд и порт коммутатора", "Переставить кабель", "Проверить ethtool", "Обновить драйвер и прошивку NIC", "Заменить адаптер или SFP"]
     },
     {
-      "code": "SRV-NIC-008",
-      "title": "Сетевой адаптер не определяется или не линкуется",
-      "description": "Физический порт NIC не поднимает линк, не виден в ОС или в BMC.",
-      "symptoms": ["нет линка", "link down", "nic не виден", "сеть недоступна", "no carrier"],
-      "keywords": ["nic", "сеть", "линк", "ethernet", "порт", "link down", "адаптер"],
-      "category": "Сеть",
-      "recommended_actions": [
-        "Проверить патч-корд и коммутаторный порт",
-        "Переставить SFP/кабель на другой порт",
-        "Проверить индикацию на NIC и в ethtool",
-        "Обновить драйвер и прошивку NIC",
-        "Заменить неисправный адаптер или модуль SFP"
-      ]
+      "code": "SRV-BMC-001",
+      "title": "BMC (iDRAC/iLO/Redfish) недоступен",
+      "description": "Удалённое управление не отвечает, нет консоли и метрик.",
+      "failure_mode": "Полный отказ",
+      "symptoms": ["idrac недоступен", "ilo не отвечает", "ipmi timeout", "bmc offline", "redfish error"],
+      "keywords": ["idrac", "ilo", "ipmi", "bmc", "redfish", "недоступен", "management"],
+      "category": "Мониторинг, управление и сервисы",
+      "recommended_actions": ["Проверить dedicated порт и VLAN", "Cold reset BMC", "Проверить настройки IP BMC", "Восстановление через BIOS", "Обновить прошивку BMC"]
     },
     {
-      "code": "SRV-IPMI-009",
-      "title": "BMC (iDRAC/iLO/IPMI) недоступен",
-      "description": "Удалённое управление сервером не отвечает по сети, нет доступа к консоли.",
-      "symptoms": ["idrac недоступен", "ilo не отвечает", "ipmi timeout", "bmc offline"],
-      "keywords": ["idrac", "ilo", "ipmi", "bmc", "управление", "недоступен", "redfish"],
-      "category": "Удалённое управление",
-      "recommended_actions": [
-        "Проверить кабель и VLAN управления",
-        "Попробовать ping и веб-интерфейс BMC",
-        "Выполнить cold reset BMC через кнопку или jumper",
-        "Проверить настройки IP и DHCP",
-        "Обновить или перепрошить BMC при повторяющихся сбоях"
-      ]
-    },
-    {
-      "code": "SRV-KVM-010",
-      "title": "Виртуальная KVM-консоль не открывается",
-      "description": "Java/HTML5 консоль iDRAC/iLO не запускается или показывает чёрный экран.",
-      "symptoms": ["kvm не открывается", "чёрный экран", "console error", "java blocked"],
-      "keywords": ["kvm", "консоль", "virtual console", "idrac", "ilo", "html5"],
-      "category": "Удалённое управление",
-      "recommended_actions": [
-        "Проверить совместимость браузера и версию BMC",
-        "Очистить кэш и отключить блокировщики",
-        "Использовать альтернативный клиент (SSH, IPMI sol)",
-        "Перезагрузить службу виртуальной консоли в BMC",
-        "Обновить прошивку BMC до актуальной версии"
-      ]
-    },
-    {
-      "code": "SRV-PCIE-011",
-      "title": "Слот PCIe не определяет карту расширения",
-      "description": "RAID, HBA, GPU или NIC не видны в BIOS/ОС после установки в слот.",
-      "symptoms": ["pcie не виден", "карта не определяется", "device not found", "слот пустой"],
-      "keywords": ["pcie", "слот", "расширение", "hba", "raid card", "не определяется"],
-      "category": "Шина и расширения",
-      "recommended_actions": [
-        "Переустановить карту в другой слот",
-        "Проверить питание слота и кабели",
-        "Сбросить настройки BIOS к заводским",
-        "Обновить BIOS и прошивку карты",
-        "Проверить совместимость по документации сервера"
-      ]
-    },
-    {
-      "code": "SRV-GPU-012",
-      "title": "Отказ GPU в вычислительном сервере",
-      "description": "Видеокарта не определяется, падает драйвер CUDA/ROCm, ошибки ECC на GPU.",
-      "symptoms": ["gpu не виден", "cuda error", "xid error", "gpu ecc", "nvidia-smi failed"],
-      "keywords": ["gpu", "nvidia", "cuda", "rocm", "видеокарта", "xid", "ecc"],
-      "category": "Вычисления",
-      "recommended_actions": [
-        "Проверить питание GPU и кабели PCIe",
-        "Перезапустить службы GPU и проверить nvidia-smi",
-        "Запустить встроенную диагностику GPU",
-        "Проверить температуру и вентиляторы GPU",
-        "Заменить неисправную карту по RMA"
-      ]
-    },
-    {
-      "code": "SRV-HBA-013",
-      "title": "Отказ HBA-контроллера Fibre Channel / SAS",
-      "description": "Хост-адаптер не видит LUN, падает линк FC, ошибки в логах multipath.",
-      "symptoms": ["lun недоступен", "fc link down", "hba error", "multipath failed"],
-      "keywords": ["hba", "fibre channel", "fc", "sas", "lun", "multipath", "san"],
-      "category": "Хранение данных",
-      "recommended_actions": [
-        "Проверить кабели FC/SAS и SFP-модули",
-        "Перезагрузить HBA и проверить статус портов",
-        "Проверить зонирование и маскирование на SAN",
-        "Обновить прошивку HBA и драйвер",
-        "Заменить HBA при повторяющихся сбоях"
-      ]
-    },
-    {
-      "code": "SRV-BB-014",
-      "title": "Разряд или отказ батареи RAID-контроллера",
-      "description": "Кэш-защита RAID отключена, предупреждение о battery failed / BBU degraded.",
-      "symptoms": ["battery failed", "bbu degraded", "cache disabled", "write cache off"],
-      "keywords": ["bbu", "battery", "raid", "кэш", "cache", "megaraid", "perc"],
-      "category": "Хранение данных",
-      "recommended_actions": [
-        "Проверить статус BBU в утилите контроллера",
-        "Заменить батарею или supercap модуля",
-        "Временно отключить write-back cache до замены",
-        "Запланировать обслуживание в окно простоя",
-        "Проверить совместимость замены с моделью контроллера"
-      ]
-    },
-    {
-      "code": "SRV-BP-015",
-      "title": "Неисправность бэксплейна дисковой корзины",
-      "description": "Несколько дисков одновременно пропадают, ошибки на одном ряду слотов.",
-      "symptoms": ["несколько дисков пропали", "backplane error", "слоты не работают"],
-      "keywords": ["бэксплейн", "backplane", "корзина", "диски", "sas", "кабель"],
-      "category": "Хранение данных",
-      "recommended_actions": [
-        "Проверить кабели бэксплейна к контроллеру",
-        "Переставить диски между слотами для локализации",
-        "Проверить питание корзины",
-        "Заменить бэксплейн или кабельный harness",
-        "Проверить логи контроллера на ошибки PHY"
-      ]
-    },
-    {
-      "code": "SRV-TPM-016",
-      "title": "Ошибка модуля TPM / доверенной загрузки",
-      "description": "BitLocker или Secure Boot не работают, TPM не инициализируется.",
-      "symptoms": ["tpm error", "secure boot failed", "bitlocker error", "tpm not found"],
-      "keywords": ["tpm", "secure boot", "bitlocker", "доверенная загрузка", "uefi"],
-      "category": "Безопасность",
-      "recommended_actions": [
-        "Проверить наличие TPM в BIOS/UEFI",
-        "Включить TPM и Secure Boot в настройках",
-        "Обновить BIOS до рекомендованной версии",
-        "Очистить и переинициализировать TPM (с осторожностью)",
-        "Заменить материнскую плату при аппаратном отказе TPM"
-      ]
-    },
-    {
-      "code": "SRV-BIOS-017",
-      "title": "Повреждение или сбой прошивки BIOS/UEFI",
-      "description": "Сервер не проходит POST, зависает на логотипе, циклическая перезагрузка.",
-      "symptoms": ["не проходит post", "зависает на bios", "boot loop", "corrupted bios"],
+      "code": "SRV-BIOS-001",
+      "title": "Повреждение BIOS/UEFI или сбой POST",
+      "description": "Сервер не проходит POST, зависает, циклическая перезагрузка.",
+      "failure_mode": "Полный отказ",
+      "symptoms": ["не проходит post", "зависает на bios", "boot loop", "corrupted bios", "no video"],
       "keywords": ["bios", "uefi", "post", "прошивка", "boot loop", "зависает"],
-      "category": "Загрузка ОС",
-      "recommended_actions": [
-        "Выполнить recovery BIOS через BMC или USB",
-        "Сбросить CMOS перемычкой или кнопкой",
-        "Перепрошить BIOS с резервной копии",
-        "Отключить недавно добавленное оборудование",
-        "Обратиться в поддержку вендора при неудачном recovery"
-      ]
+      "category": "Конфигурация, прошивка и ПО",
+      "recommended_actions": ["Recovery BIOS через BMC/USB", "Сброс CMOS", "Перепрошить BIOS", "Отключить новое оборудование", "Обратиться в поддержку"]
     },
     {
-      "code": "SRV-HYP-018",
-      "title": "Аварийная остановка гипервизора (ESXi/KVM/Hyper-V)",
-      "description": "Хост виртуализации уходит в PSOD, kernel panic или purple screen.",
-      "symptoms": ["psod", "purple screen", "хост упал", "vm недоступны", "hypervisor crash"],
-      "keywords": ["esxi", "hyper-v", "kvm", "proxmox", "psod", "гипервизор", "хост"],
-      "category": "Виртуализация",
-      "recommended_actions": [
-        "Собрать дамп PSOD / vmkernel log",
-        "Проверить железо хоста (память, диск, CPU)",
-        "Проверить совместимость драйверов и прошивок",
-        "Перезапустить хост и мигрировать ВМ на резерв",
-        "Применить патч гипервизора по рекомендации вендора"
-      ]
-    },
-    {
-      "code": "SRV-VM-019",
-      "title": "Высокая задержка дисковой подсистемы ВМ",
-      "description": "Виртуальные машины испытывают высокий latency I/O, datastore перегружен.",
-      "symptoms": ["высокий latency", "медленный диск", "i/o wait", "datastore full"],
-      "keywords": ["vm", "datastore", "latency", "iops", "виртуализация", "storage"],
-      "category": "Виртуализация",
-      "recommended_actions": [
-        "Проверить загрузку datastore и SAN",
-        "Проанализировать метрики IOPS и latency в vCenter",
-        "Балансировать ВМ между хостами и LUN",
-        "Проверить состояние RAID и кэша на СХД",
-        "Расширить datastore или перенести ВМ"
-      ]
-    },
-    {
-      "code": "SRV-LDAP-020",
-      "title": "Сбой аутентификации в домене Active Directory",
-      "description": "Пользователи не могут войти, ошибки Kerberos, потеря trust relationship.",
-      "symptoms": ["не входит в домен", "trust failed", "kerberos error", "ldap timeout"],
-      "keywords": ["ad", "ldap", "домен", "kerberos", "аутентификация", "trust"],
-      "category": "Службы и ПО",
-      "recommended_actions": [
-        "Проверить доступность контроллеров домена",
-        "Синхронизировать время (NTP) на сервере",
-        "Проверить DNS-записи SRV домена",
-        "Перевыпустить компьютер в домен при необходимости",
-        "Проверить репликацию AD и журналы событий"
-      ]
-    },
-    {
-      "code": "SRV-DNS-021",
-      "title": "Сбой разрешения DNS на сервере",
-      "description": "Сервер не резолвит имена, приложения падают с ошибками hostname resolution.",
-      "symptoms": ["dns не работает", "name resolution failed", "nxdomain", "timeout dns"],
-      "keywords": ["dns", "резолвинг", "имя", "nslookup", "dig", "hostname"],
-      "category": "Сеть",
-      "recommended_actions": [
-        "Проверить /etc/resolv.conf или сетевые настройки Windows",
-        "Выполнить nslookup/dig к известным хостам",
-        "Проверить доступность DNS-серверов",
-        "Проверить firewall и маршрутизацию до DNS",
-        "Очистить локальный DNS-кэш (systemd-resolved, ipconfig /flushdns)"
-      ]
-    },
-    {
-      "code": "SRV-NTP-022",
-      "title": "Рассинхронизация системного времени (NTP)",
-      "description": "Время на сервере расходится, Kerberos и сертификаты отказывают в работе.",
-      "symptoms": ["время неверное", "ntp offset", "clock skew", "сертификат просрочен"],
-      "keywords": ["ntp", "время", "chrony", "timesync", "clock", "синхронизация"],
-      "category": "Службы и ПО",
-      "recommended_actions": [
-        "Проверить статус chrony/ntpd/w32time",
-        "Убедиться в доступности NTP-серверов",
-        "Проверить часовой пояс и RTC",
-        "Принудительно синхронизировать время",
-        "Настроить несколько источников NTP для отказоустойчивости"
-      ]
-    },
-    {
-      "code": "SRV-SSL-023",
-      "title": "Истечение срока SSL/TLS-сертификата",
-      "description": "Веб-сервис или API недоступны из-за просроченного сертификата.",
-      "symptoms": ["certificate expired", "ssl error", "сертификат просрочен", "handshake failed"],
-      "keywords": ["ssl", "tls", "сертификат", "https", "expired", "letsencrypt"],
-      "category": "Безопасность",
-      "recommended_actions": [
-        "Проверить дату истечения сертификата (openssl s_client)",
-        "Выпустить и установить новый сертификат",
-        "Настроить автоматическое продление (certbot, ACME)",
-        "Обновить цепочку промежуточных сертификатов",
-        "Проверить мониторинг сроков сертификатов"
-      ]
-    },
-    {
-      "code": "SRV-SMART-024",
-      "title": "Предупреждение SMART о скором отказе диска",
-      "description": "Контроллер или ОС сообщает о predictive failure, reallocated sectors растут.",
-      "symptoms": ["smart warning", "predictive failure", "reallocated sectors", "disk failing"],
-      "keywords": ["smart", "predictive", "reallocated", "диск", "износ", "ssd wear"],
+      "code": "SRV-RAID-001",
+      "title": "Отказ BBU / Cache Battery на RAID",
+      "description": "Кэш-защита отключена, battery failed, write-through.",
+      "failure_mode": "Деградация",
+      "symptoms": ["battery failed", "bbu degraded", "cache disabled", "write cache off"],
+      "keywords": ["bbu", "battery", "raid", "кэш", "megaraid", "perc"],
       "category": "Хранение данных",
-      "recommended_actions": [
-        "Проверить SMART-атрибуты (smartctl, утилита RAID)",
-        "Запланировать замену диска до полного отказа",
-        "Добавить hot spare в массив",
-        "Сделать бэкап критичных данных",
-        "Заменить диск в окно обслуживания"
-      ]
+      "recommended_actions": ["Проверить статус BBU", "Заменить батарею/supercap", "Перевести в write-through", "Запланировать обслуживание", "Проверить совместимость"]
     },
     {
-      "code": "SRV-SAN-025",
-      "title": "Недоступность LUN на SAN-хранилище",
-      "description": "Сервер теряет доступ к томам СХД, multipath показывает failed paths.",
+      "code": "SRV-HYP-001",
+      "title": "Аварийная остановка гипервизора (PSOD)",
+      "description": "ESXi/Hyper-V/KVM уходит в панику, хост недоступен.",
+      "failure_mode": "Полный отказ",
+      "symptoms": ["psod", "purple screen", "хост упал", "vm недоступны", "hypervisor crash"],
+      "keywords": ["esxi", "hyper-v", "kvm", "psod", "гипервизор", "хост"],
+      "category": "Виртуализация",
+      "recommended_actions": ["Собрать дамп PSOD", "Проверить железо хоста", "Проверить совместимость", "Мигрировать ВМ", "Применить патч"]
+    },
+    {
+      "code": "SRV-STOR-001",
+      "title": "Недоступность LUN на SAN",
+      "description": "Сервер теряет тома СХД, multipath failed paths.",
+      "failure_mode": "Полный отказ",
       "symptoms": ["lun missing", "san недоступен", "path failed", "storage offline"],
       "keywords": ["san", "lun", "схд", "multipath", "fc", "iscsi", "storage"],
       "category": "Хранение данных",
-      "recommended_actions": [
-        "Проверить статус путей multipath (multipath -ll)",
-        "Проверить FC/iSCSI линки и коммутаторы SAN",
-        "Связаться с администратором СХД",
-        "Перезапустить службы multipath и HBA",
-        "Проверить маскирование и зонирование LUN"
-      ]
+      "recommended_actions": ["Проверить multipath статус", "Проверить физические линки SAN", "Связаться с админом СХД", "Перезапустить HBA и service", "Проверить кабели/SFP"]
     },
     {
-      "code": "SRV-BACKUP-026",
-      "title": "Сбой задания резервного копирования",
-      "description": "Backup job завершается с ошибкой, данные не попадают в хранилище бэкапов.",
-      "symptoms": ["backup failed", "бэкап не прошёл", "veeam error", "tar error"],
-      "keywords": ["backup", "бэкап", "veeam", "bacula", "restic", "резервное копирование"],
-      "category": "Резервное копирование",
-      "recommended_actions": [
-        "Проверить логи задания бэкапа",
-        "Убедиться в доступности хранилища бэкапов",
-        "Проверить свободное место на целевом томе",
-        "Проверить права сервисной учётной записи",
-        "Перезапустить задание и проверить целостность предыдущего бэкапа"
-      ]
+      "code": "SRV-BOOT-001",
+      "title": "Не загружается ОС (Inaccessible Boot Device)",
+      "description": "BSOD 0x7B или kernel panic при загрузке.",
+      "failure_mode": "Полный отказ",
+      "symptoms": ["inaccessible boot device", "0x0000007b", "kernel panic", "синий экран"],
+      "keywords": ["загрузка", "bsod", "panic", "0x7b", "boot device", "inaccessible"],
+      "category": "Загрузка ОС",
+      "recommended_actions": ["Проанализировать дамп", "Проверить диск и контроллер", "Отключить новое ПО", "Загрузка recovery", "Проверить драйверы хранения"]
     },
     {
-      "code": "SRV-UPS-027",
-      "title": "Переключение на ИБП / разряд батареи ИБП",
-      "description": "Сервер получил сигнал shutdown от UPS, батарея ИБП разряжена или не держит нагрузку.",
-      "symptoms": ["ups on battery", "shutdown imminent", "ибп разряжен", "power event"],
+      "code": "SRV-TIME-001",
+      "title": "Рассинхронизация времени (Clock Skew)",
+      "description": "Время расходится, Kerberos и сертификаты отказывают.",
+      "failure_mode": "Деградация",
+      "symptoms": ["clock skew", "ntp offset large", "kerberos error", "certificate expired"],
+      "keywords": ["ntp", "время", "clock skew", "chrony", "kerberos"],
+      "category": "Мониторинг, управление и сервисы",
+      "recommended_actions": ["Проверить chronyd/ntpd", "Доступность NTP", "Принудительная синхронизация", "Проверить RTC и TZ", "Несколько источников"]
+    },
+    {
+      "code": "SRV-DISK-003",
+      "title": "Высокий износ SSD / Reallocated sectors",
+      "description": "SMART показывает износ, reallocated растут.",
+      "failure_mode": "Деградация",
+      "symptoms": ["smart warning", "wear out", "reallocated sectors", "ssd failing"],
+      "keywords": ["ssd", "wear", "smart", "reallocated", "износ"],
+      "category": "Хранение данных",
+      "recommended_actions": ["Прочитать SMART", "Запланировать замену", "Добавить hot spare", "Полный бэкап", "Проверить workload"]
+    },
+    {
+      "code": "SRV-GPU-001",
+      "title": "Отказ GPU в вычислительном сервере",
+      "description": "GPU не определяется, ошибки CUDA/XID.",
+      "failure_mode": "Полный отказ",
+      "symptoms": ["gpu не виден", "cuda error", "xid error", "nvidia-smi failed"],
+      "keywords": ["gpu", "nvidia", "cuda", "xid", "видеокарта"],
+      "category": "Процессор, память, контроллеры",
+      "recommended_actions": ["Проверить питание GPU и PCIe", "Переустановить в другой слот", "Диагностика nvidia-smi", "Проверить температуру", "Заменить карту"]
+    },
+    {
+      "code": "SRV-NIC-002",
+      "title": "Высокий уровень ошибок на порту (CRC/Input)",
+      "description": "Много CRC, падение производительности.",
+      "failure_mode": "Деградация",
+      "symptoms": ["crc errors", "input errors", "rx errors", "плохой линк"],
+      "keywords": ["crc", "errors", "nic", "link", "duplex", "cable"],
+      "category": "Сетевое подключение / Связь",
+      "recommended_actions": ["Проверить кабель", "Поменять SFP", "Проверить auto-negotiate", "Проверить порт на свитче", "Проверить MTU"]
+    },
+    {
+      "code": "SRV-BB-001",
+      "title": "Неисправность бэксплейна дисковой корзины",
+      "description": "Несколько дисков пропадают в одном ряду.",
+      "failure_mode": "Полный отказ",
+      "symptoms": ["несколько дисков пропали", "backplane error", "all disks missing"],
+      "keywords": ["бэксплейн", "backplane", "корзина", "диски", "sas"],
+      "category": "Хранение данных",
+      "recommended_actions": ["Проверить кабели бэксплейна", "Переставить диски", "Проверить питание корзины", "Заменить бэксплейн", "Проверить логи PHY"]
+    },
+    {
+      "code": "SRV-TPM-001",
+      "title": "Ошибка TPM / Secure Boot",
+      "description": "TPM не инициализируется, Secure Boot или BitLocker падает.",
+      "failure_mode": "Деградация",
+      "symptoms": ["tpm error", "secure boot failed", "bitlocker error", "tpm not found"],
+      "keywords": ["tpm", "secure boot", "bitlocker", "доверенная загрузка"],
+      "category": "Безопасность и доступ",
+      "recommended_actions": ["Проверить TPM в BIOS", "Включить TPM", "Обновить BIOS", "Очистить TPM (осторожно)", "Заменить материнку"]
+    },
+    {
+      "code": "SRV-PCIE-001",
+      "title": "Слот PCIe не определяет карту",
+      "description": "RAID/HBA/GPU/NIC не видны после установки.",
+      "failure_mode": "Полный отказ",
+      "symptoms": ["pcie не виден", "карта не определяется", "device not found"],
+      "keywords": ["pcie", "слот", "расширение", "hba", "raid card"],
+      "category": "Шина и расширения",
+      "recommended_actions": ["Переставить в другой слот", "Проверить питание слота", "Сброс BIOS", "Обновить BIOS и прошивку карты", "Проверить совместимость"]
+    },
+    {
+      "code": "SRV-UPS-001",
+      "title": "Переключение на ИБП / разряд батареи",
+      "description": "Сервер получил сигнал shutdown от UPS.",
+      "failure_mode": "Деградация",
+      "symptoms": ["ups on battery", "shutdown imminent", "ибп разряжен"],
       "keywords": ["ups", "ибп", "питание", "батарея", "shutdown", "nut"],
       "category": "Питание",
-      "recommended_actions": [
-        "Проверить статус ИБП и время автономии",
-        "Проверить кабель связи UPS–сервер (USB/serial/SNMP)",
-        "Заменить или обслужить батареи ИБП",
-        "Проверить нагрузку на ИБП и PDU",
-        "Настроить корректный graceful shutdown через NUT/IPMI"
-      ]
+      "recommended_actions": ["Проверить статус UPS и автономию", "Проверить кабель связи", "Заменить батареи", "Проверить нагрузку", "Graceful shutdown"]
     },
     {
-      "code": "SRV-DISK-028",
-      "title": "Переполнение системного раздела (disk full)",
-      "description": "Раздел / или C: заполнен, сервисы падают, логи не пишутся.",
-      "symptoms": ["disk full", "no space left", "раздел заполнен", "логи не пишутся"],
-      "keywords": ["disk full", "место", "раздел", "inode", "логи", "var"],
+      "code": "SRV-DISK-004",
+      "title": "Переполнение системного раздела",
+      "description": "Диск / или C: заполнен, сервисы падают.",
+      "failure_mode": "Деградация",
+      "symptoms": ["disk full", "no space left", "раздел заполнен"],
+      "keywords": ["disk full", "место", "inode", "логи", "var"],
       "category": "Службы и ПО",
-      "recommended_actions": [
-        "Найти крупные файлы (du, ncdu, TreeSize)",
-        "Очистить старые логи и временные файлы",
-        "Настроить logrotate и ротацию журналов",
-        "Расширить том или добавить диск",
-        "Настроить алерты на заполнение диска"
-      ]
+      "recommended_actions": ["Найти крупные файлы (du/ncdu)", "Очистить логи", "Настроить logrotate", "Расширить том", "Алерты на заполнение"]
+    },
+    {
+      "code": "SRV-SAN-001",
+      "title": "Проблемы с multipath на SAN",
+      "description": "Часть путей failed, degraded paths.",
+      "failure_mode": "Деградация",
+      "symptoms": ["multipath degraded", "path failed", "only 1 path"],
+      "keywords": ["multipath", "san", "path", "fc", "iscsi"],
+      "category": "Хранение данных",
+      "recommended_actions": ["multipath -ll", "Проверить FC links", "Проверить zoning", "Restart multipathd", "Проверить HBA"]
+    },
+    {
+      "code": "SRV-VIRT-001",
+      "title": "Высокий latency datastore ВМ",
+      "description": "ВМ испытывают I/O latency, datastore перегружен.",
+      "failure_mode": "Деградация",
+      "symptoms": ["высокий latency", "медленный диск vm", "i/o wait"],
+      "keywords": ["vm", "datastore", "latency", "iops", "storage"],
+      "category": "Виртуализация",
+      "recommended_actions": ["Проверить загрузку datastore", "Анализ IOPS в vCenter", "Балансировать ВМ", "Проверить RAID на СХД", "Расширить datastore"]
+    },
+    {
+      "code": "SRV-AD-001",
+      "title": "Сбой аутентификации в домене AD",
+      "description": "Не входит в домен, trust failed, Kerberos ошибки.",
+      "failure_mode": "Деградация",
+      "symptoms": ["не входит в домен", "trust failed", "kerberos error"],
+      "keywords": ["ad", "ldap", "домен", "kerberos", "trust"],
+      "category": "Службы и ПО",
+      "recommended_actions": ["Проверить DC доступность", "Синхронизация времени NTP", "Проверить DNS SRV", "Rejoin домен", "Репликация AD"]
+    },
+    {
+      "code": "SRV-DNS-001",
+      "title": "Сбой разрешения DNS",
+      "description": "Сервер не резолвит имена, приложения падают.",
+      "failure_mode": "Деградация",
+      "symptoms": ["dns не работает", "name resolution failed", "nxdomain"],
+      "keywords": ["dns", "резолвинг", "имя", "nslookup"],
+      "category": "Сеть",
+      "recommended_actions": ["Проверить resolv.conf", "nslookup/dig", "Доступность DNS серверов", "Firewall до DNS", "Очистить кэш"]
+    },
+    {
+      "code": "SRV-SSL-001",
+      "title": "Истечение SSL/TLS сертификата",
+      "description": "Веб или API недоступны из-за expired cert.",
+      "failure_mode": "Деградация",
+      "symptoms": ["certificate expired", "ssl error", "handshake failed"],
+      "keywords": ["ssl", "tls", "сертификат", "https", "expired"],
+      "category": "Безопасность и доступ",
+      "recommended_actions": ["Проверить дату (openssl)", "Выпустить новый", "Настроить auto-renew", "Обновить chain", "Мониторинг сроков"]
+    },
+    {
+      "code": "SRV-SMART-001",
+      "title": "Предупреждение SMART о скором отказе диска",
+      "description": "Predictive failure, reallocated sectors.",
+      "failure_mode": "Деградация",
+      "symptoms": ["smart warning", "predictive failure", "reallocated sectors"],
+      "keywords": ["smart", "predictive", "reallocated", "диск"],
+      "category": "Хранение данных",
+      "recommended_actions": ["Проверить SMART атрибуты", "Запланировать замену", "Hot spare", "Бэкап", "Заменить в окно"]
+    },
+    {
+      "code": "SRV-LDAP-001",
+      "title": "Сбой LDAP подключения",
+      "description": "Приложения не могут аутентифицировать через LDAP.",
+      "failure_mode": "Деградация",
+      "symptoms": ["ldap timeout", "ldap bind failed", "auth error"],
+      "keywords": ["ldap", "authentication", "bind"],
+      "category": "Службы и ПО",
+      "recommended_actions": ["Проверить LDAP сервер", "Проверить bind DN и пароль", "Firewall и порт 389/636", "TLS cert", "Логи приложения"]
+    },
+    {
+      "code": "SRV-ILO-001",
+      "title": "Проблемы с iLO / виртуальной консолью",
+      "description": "KVM не открывается, чёрный экран.",
+      "failure_mode": "Деградация",
+      "symptoms": ["kvm не открывается", "чёрный экран", "console error"],
+      "keywords": ["ilo", "kvm", "virtual console", "java"],
+      "category": "Мониторинг, управление и сервисы",
+      "recommended_actions": ["Проверить совместимость браузера", "Очистить кэш", "Альтернативный клиент", "Перезагрузить службу консоли", "Обновить прошивку"]
+    },
+    {
+      "code": "SRV-FW-001",
+      "title": "Сбой прошивки HBA / RAID контроллера",
+      "description": "Контроллер не видит диски после обновления или сбоя.",
+      "failure_mode": "Полный отказ",
+      "symptoms": ["hba не видит диски", "controller firmware error"],
+      "keywords": ["hba", "firmware", "raid controller", "прошивка"],
+      "category": "Конфигурация, прошивка и ПО",
+      "recommended_actions": ["Downgrade firmware", "Проверить кабели", "Сброс контроллера", "Обновить до стабильной", "Проверить совместимость"]
+    },
+    {
+      "code": "SRV-ENV-001",
+      "title": "Высокая температура в стойке / environment",
+      "description": "Много серверов перегреваются, срабатывают thermal.",
+      "failure_mode": "Деградация",
+      "symptoms": ["высокая температура стойки", "много thermal alerts"],
+      "keywords": ["environment", "температура", "стойка", "crac"],
+      "category": "Охлаждение и вентиляция",
+      "recommended_actions": ["Проверить CRAC/HVAC", "Проверить airflow и blanking panels", "Очистить фильтры", "Проверить загрузку стойки", "Мониторинг датчиков"]
+    },
+    {
+      "code": "SRV-LOG-001",
+      "title": "Переполнение логов / syslog",
+      "description": "Диск заполняется логами, сервисы тормозят.",
+      "failure_mode": "Деградация",
+      "symptoms": ["логи заполняют диск", "syslog high cpu"],
+      "keywords": ["логи", "syslog", "journald", "disk space"],
+      "category": "Службы и ПО",
+      "recommended_actions": ["Настроить logrotate", "Проверить источники логов", "Очистить старые", "Centralized logging", "Алерты"]
+    },
+    {
+      "code": "SRV-SEC-001",
+      "title": "Sudo / su сбои, проблемы с PAM",
+      "description": "Не получается sudo, ошибки аутентификации.",
+      "failure_mode": "Деградация",
+      "symptoms": ["sudo error", "pam authentication failed"],
+      "keywords": ["sudo", "pam", "auth", "permission"],
+      "category": "Безопасность и доступ",
+      "recommended_actions": ["Проверить /etc/sudoers", "PAM конфиг", "nsswitch", "ldap или local users", "Проверить selinux/apparmor"]
+    },
+    {
+      "code": "SRV-KVM-001",
+      "title": "Проблемы с KVM/QEMU на гипервизоре",
+      "description": "ВМ не стартуют, ошибки QEMU.",
+      "failure_mode": "Деградация",
+      "symptoms": ["qemu error", "kvm module", "vm start failed"],
+      "keywords": ["kvm", "qemu", "hypervisor", "vm"],
+      "category": "Виртуализация",
+      "recommended_actions": ["Проверить kvm модуль", "Nested virtualization", "CPU flags", "Permissions /dev/kvm", "Обновить qemu/libvirt"]
+    },
+    {
+      "code": "SRV-PATCH-001",
+      "title": "Сбой применения патча / обновления",
+      "description": "Обновление прервалось, система в inconsistent state.",
+      "failure_mode": "Деградация",
+      "symptoms": ["patch failed", "update error", "broken packages"],
+      "keywords": ["patch", "update", "yum", "apt", "broken"],
+      "category": "Конфигурация, прошивка и ПО",
+      "recommended_actions": ["Проверить логи обновления", "dpkg --configure -a или rpm --rebuilddb", "Rollback если возможно", "Проверить зависимости", "Восстановить из snapshot"]
+    },
+    {
+      "code": "SRV-NET-001",
+      "title": "Сетевые проблемы на хосте (bonding, vlan)",
+      "description": "Bond не поднимается, VLAN не работает.",
+      "failure_mode": "Полный отказ",
+      "symptoms": ["bond down", "vlan not working", "no ip on interface"],
+      "keywords": ["bond", "team", "vlan", "network config"],
+      "category": "Сетевое подключение / Связь",
+      "recommended_actions": ["Проверить bonding mode и options", "Проверить 802.1q module", "ip link / ethtool", "Проверить switchport", "Restart network"]
     }
   ]
 }

@@ -57,6 +57,9 @@ class ClassifyRequest(BaseModel):
     skip_pd_cleaning: bool = Field(
         False, description="Пропустить очистку ПД (только для отладки в доверенной среде)"
     )
+    presumed_typical_malfunction: str | None = Field(
+        None, description="Предполагаемая типовая неисправность (от контролёра или initial guess)"
+    )
 
     @model_validator(mode="after")
     def validate_context_present(self) -> "ClassifyRequest":
@@ -83,6 +86,7 @@ class FaultMatch(BaseModel):
     title: str
     description: str
     category: str | None = None
+    failure_mode: str | None = None
     confidence: float = Field(..., ge=0.0, le=1.0)
     matched_reasons: list[str] = Field(default_factory=list)
     recommended_actions: list[str] = Field(default_factory=list)
@@ -131,6 +135,8 @@ class ClassifyResponse(BaseModel):
     scoring_time_ms: float | None = None
     pd_cleaning_time_ms: float | None = None
     scoring_weights: dict[str, float] | None = None
+    typical_malfunction: str | None = Field(None, description="Определённая типовая неисправность (по классификатору)")
+    presumed_typical_malfunction: str | None = Field(None, description="Предполагаемая типовая неисправность")
 
 
 class FaultRead(BaseModel):
@@ -142,6 +148,7 @@ class FaultRead(BaseModel):
     symptoms: list[str]
     keywords: list[str]
     category: str | None = None
+    failure_mode: str | None = None
     recommended_actions: list[str]
     meta: dict[str, Any] | None = None
 
@@ -155,6 +162,7 @@ class FaultCreate(BaseModel):
     symptoms: list[str] = Field(default_factory=list)
     keywords: list[str] = Field(default_factory=list)
     category: str | None = None
+    failure_mode: str | None = None
     recommended_actions: list[str] = Field(default_factory=list)
     meta: dict[str, Any] | None = None
 
@@ -172,6 +180,7 @@ class FaultUpdate(BaseModel):
     symptoms: list[str] | None = None
     keywords: list[str] | None = None
     category: str | None = None
+    failure_mode: str | None = None
     recommended_actions: list[str] | None = None
     meta: dict[str, Any] | None = None
 
@@ -186,11 +195,13 @@ class CatalogInfo(BaseModel):
 
 
 class HistoryEntry(BaseModel):
-    """Запись журнала классификаций."""
+    """Запись журнала классификаций (расширенная для live UI)."""
 
     id: int
     catalog_name: str
     context: str
+    original_context: str | None = None
+    pd_entities: list[dict[str, Any]] = Field(default_factory=list)
     top_matches: list[dict[str, Any]]
     top_confidence: float | None = None
     processing_time_ms: float | None = None

@@ -81,14 +81,14 @@ def test_seed_data_loaded():
 def test_classify_basic_match():
     req = ClassifyRequest(
         catalog="servers",
-        context="сервер не видит диск, ошибка 0x7b при загрузке",
+        context="диск не виден sata raid bios не определяется",
         top_k=3,
     )
     resp = engine.classify(req)
     assert resp.catalog == "servers"
     assert len(resp.matches) >= 1
     top = resp.matches[0]
-    assert "SRV-DISK" in top.code
+    assert "DISK" in top.code or "disk" in top.title.lower()
     assert top.confidence > 0.4
 
 

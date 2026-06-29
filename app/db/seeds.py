@@ -60,6 +60,7 @@ def import_catalog(db: Session, catalog_data: dict[str, Any]) -> int:
             existing.symptoms = f.get("symptoms", [])
             existing.keywords = f.get("keywords", [])
             existing.category = f.get("category")
+            existing.failure_mode = f.get("failure_mode")
             existing.recommended_actions = f.get("recommended_actions", [])
             existing.meta = f.get("meta")
         else:
@@ -71,6 +72,7 @@ def import_catalog(db: Session, catalog_data: dict[str, Any]) -> int:
                 symptoms=f.get("symptoms", []),
                 keywords=f.get("keywords", []),
                 category=f.get("category"),
+                failure_mode=f.get("failure_mode"),
                 recommended_actions=f.get("recommended_actions", []),
                 meta=f.get("meta"),
             )

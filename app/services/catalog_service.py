@@ -37,6 +37,7 @@ def add_fault(db: Session, catalog_name: str, data: FaultCreate) -> Fault:
         symptoms=data.symptoms,
         keywords=data.keywords,
         category=data.category,
+        failure_mode=data.failure_mode,
         recommended_actions=data.recommended_actions,
         meta=data.meta,
     )

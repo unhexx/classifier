@@ -9,11 +9,11 @@
 """
 
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, List
 
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
@@ -38,6 +38,92 @@ from app.core.models import (
 from app.db.seeds import ensure_catalogs_loaded
 from app.db.session import SessionLocal, get_db, init_db
 from app.services.classify_service import classify_context, get_classification_history
+
+from collections import deque
+import time
+from typing import Any, Dict, List
+
+
+class ConnectionManager:
+    """Simple WebSocket connection manager for live events (classifications, etc.)."""
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        """Broadcast JSON message to all connected clients."""
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except Exception:
+                # client probably disconnected
+                self.disconnect(connection)
+
+
+manager = ConnectionManager()
+
+
+class LiveStats:
+    """In-memory live metrics collector for UI dashboard + WS pushes (lightweight, no DB on hotpath)."""
+    def __init__(self):
+        self.classifications: int = 0
+        self.pd_cleaned_total: int = 0
+        self.total_processing_ms: float = 0.0
+        self.recent_ts: deque[float] = deque(maxlen=200)  # timestamps for rolling rate (last ~minutes)
+        self.catalog_counts: Dict[str, int] = {}
+        self.pd_type_counts: Dict[str, int] = {}
+        self.ws_connections: int = 0
+
+    def record_classification(self, catalog: str, processing_ms: float | None, pd_entities: list[dict] | None):
+        self.classifications += 1
+        ts = time.time()
+        self.recent_ts.append(ts)
+        if catalog:
+            self.catalog_counts[catalog] = self.catalog_counts.get(catalog, 0) + 1
+        if processing_ms:
+            self.total_processing_ms += float(processing_ms)
+        for e in (pd_entities or []):
+            t = e.get("entity_type") or "unknown"
+            self.pd_type_counts[t] = self.pd_type_counts.get(t, 0) + 1
+
+    def record_pd_clean(self, count: int):
+        self.pd_cleaned_total += max(0, int(count or 0))
+
+    def get_rolling_rate_per_min(self) -> float:
+        if not self.recent_ts:
+            return 0.0
+        now = time.time()
+        # count events in last 60s
+        window = 60.0
+        recent = [t for t in self.recent_ts if now - t <= window]
+        # rate per minute
+        return round(len(recent) * (60.0 / window) if recent else 0.0, 1)
+
+    def get_avg_processing_ms(self) -> float:
+        if self.classifications == 0:
+            return 0.0
+        return round(self.total_processing_ms / self.classifications, 1)
+
+    def snapshot(self) -> dict:
+        return {
+            "classifications": self.classifications,
+            "pd_cleaned": self.pd_cleaned_total,
+            "rate_per_min": self.get_rolling_rate_per_min(),
+            "avg_processing_ms": self.get_avg_processing_ms(),
+            "catalog_counts": dict(self.catalog_counts),
+            "pd_type_counts": dict(self.pd_type_counts),
+            "ws_clients": self.ws_connections,
+        }
+
+
+live_stats = LiveStats()
 
 
 @asynccontextmanager
@@ -114,7 +200,7 @@ def get_config() -> ConfigResponse:
 
 
 @app.post("/api/v1/classify", response_model=ClassifyResponse, tags=["classification"])
-def classify(request: ClassifyRequest, db: Session = Depends(get_db)) -> ClassifyResponse:
+async def classify(request: ClassifyRequest, db: Session = Depends(get_db)) -> ClassifyResponse:
     """Основной метод классификации."""
     if not catalog_registry.get(request.catalog):
         catalog_registry.load_from_db(db)
@@ -133,16 +219,81 @@ def classify(request: ClassifyRequest, db: Session = Depends(get_db)) -> Classif
             detail=f"Справочник '{request.catalog}' не найден. "
             f"Доступные: {catalog_registry.names}",
         )
+
+    # Record live metrics (non blocking)
+    try:
+        pd_list = [e.model_dump() for e in result.pd_entities] if result.pd_entities else []
+        live_stats.record_classification(
+            catalog=result.catalog,
+            processing_ms=result.processing_time_ms,
+            pd_entities=pd_list
+        )
+        live_stats.record_pd_clean(len(pd_list))
+    except Exception:
+        pass
+
+    # Broadcast live event for connected UIs - rich payload for instant UI update + metrics delta
+    try:
+        top = result.matches[0] if result.matches else None
+        pd_list = [e.model_dump() for e in result.pd_entities] if result.pd_entities else []
+        payload = {
+            "type": "new_classification",
+            "data": {
+                "catalog": result.catalog,
+                "catalog_name": result.catalog,
+                "context": result.context,
+                "original_context": result.original_context,
+                "pd_entities": pd_list,
+                "typical_malfunction": result.typical_malfunction,
+                "presumed_typical_malfunction": result.presumed_typical_malfunction,
+                "top_matches": [m.model_dump() for m in result.matches] if result.matches else [],
+                "top_confidence": top.confidence if top else None,
+                "processing_time_ms": result.processing_time_ms,
+                "pd_count": len(pd_list),
+                "timestamp": None,
+            }
+        }
+        await manager.broadcast(payload)
+        # also push updated metrics snapshot
+        await manager.broadcast({"type": "metrics_update", "data": live_stats.snapshot()})
+    except Exception:
+        pass  # non-blocking for UI live updates
+
     return result
+
+
+@app.websocket("/ws/events")
+async def websocket_events(websocket: WebSocket):
+    """WebSocket for live events (new classifications, etc.). Clients receive JSON pushes."""
+    await manager.connect(websocket)
+    live_stats.ws_connections = len(manager.active_connections)
+    # push initial metrics snapshot on connect
+    try:
+        await websocket.send_json({"type": "metrics_update", "data": live_stats.snapshot()})
+    except Exception:
+        pass
+    try:
+        # Keep connection alive; clients can send pings if needed
+        while True:
+            await websocket.receive_text()  # simple keepalive
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+        live_stats.ws_connections = len(manager.active_connections)
 
 
 @app.get("/api/v1/history", response_model=list[HistoryEntry], tags=["classification"])
 def classification_history(
-    limit: int = Query(default=20, ge=1, le=200),
+    limit: int = Query(default=50, ge=1, le=500),
     db: Session = Depends(get_db),
 ) -> list[HistoryEntry]:
-    """Последние записи журнала классификаций."""
+    """Последние записи журнала классификаций (расширенные для UI)."""
     return get_classification_history(db, limit=limit)
+
+
+@app.get("/api/v1/metrics", tags=["system"])
+def get_live_metrics() -> dict:
+    """Текущие live метрики (для начальной загрузки UI и polling fallback)."""
+    return live_stats.snapshot()
 
 
 @app.get("/api/v1/catalogs", response_model=list[CatalogInfo], tags=["catalogs"])

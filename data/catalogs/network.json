@@ -1,382 +1,56 @@
 {
   "name": "network",
-  "version": "2.0",
-  "description": "Типовые неисправности сетевого оборудования (коммутаторы, маршрутизаторы, трансиверы)",
+  "version": "3.1",
+  "description": "Типовые неисправности сетевого оборудования. Расширенный по ITIL/FMEA практикам.",
   "faults": [
-    {
-      "code": "NET-LINK-001",
-      "title": "Потеря линка / Link down на порту",
-      "description": "Порт показывает Down, нет линка, трафик отсутствует.",
-      "symptoms": ["link down", "нет линка", "port down", "interface down"],
-      "keywords": ["link", "down", "линк", "порт", "interface", "flapping"],
-      "category": "Физический уровень",
-      "recommended_actions": [
-        "Проверить кабель и патч-корд",
-        "Проверить трансивер (SFP/QSFP)",
-        "Поменять порт на коммутаторе",
-        "Проверить на соседнем устройстве",
-        "Посмотреть counters ошибок (CRC, giants)"
-      ]
-    },
-    {
-      "code": "NET-POE-002",
-      "title": "Проблемы PoE — камера/точка доступа не получает питание",
-      "description": "Устройство не включается по PoE, хотя кабель подходит.",
-      "symptoms": ["poe", "не питается", "power inline", "no power"],
-      "keywords": ["poe", "питание", "inline", "power", "af", "at", "bt"],
-      "category": "Питание",
-      "recommended_actions": [
-        "Проверить бюджет PoE на свиче",
-        "Проверить класс PoE устройства",
-        "Поменять порт",
-        "Проверить кабель на качество (длина, витая пара)",
-        "Обновить прошивку свича"
-      ]
-    },
-    {
-      "code": "NET-VLAN-003",
-      "title": "Трафик не проходит между VLAN",
-      "description": "Устройства в разных VLAN не видят друг друга, хотя L3 выглядит нормально.",
-      "symptoms": ["нет связности", "vlan", "inter-vlan", "routing"],
-      "keywords": ["vlan", "маршрутизация", "l3", "svi", "access", "trunk"],
-      "category": "L2/L3",
-      "recommended_actions": [
-        "Проверить назначение access/trunk портов",
-        "Проверить native VLAN и allowed VLAN list",
-        "Проверить SVI и маршруты",
-        "Проверить ACL / VACL",
-        "Сделать packet capture на границе"
-      ]
-    },
-    {
-      "code": "NET-STP-004",
-      "title": "Петля STP / Broadcast storm",
-      "description": "Сеть тормозит, высокая утилизация CPU на коммутаторах, шторм широковещательных пакетов.",
-      "symptoms": ["шторм", "broadcast", "stp", "loop", "высокая загрузка"],
-      "keywords": ["stp", "loop", "broadcast storm", "петля", "bpdu"],
-      "category": "L2",
-      "recommended_actions": [
-        "Включить BPDU Guard / Root Guard на access портах",
-        "Найти порт с петлёй (порты с огромным количеством broadcast)",
-        "Заблокировать подозрительный порт",
-        "Проверить настройки STP (RSTP/MSTP)",
-        "Включить storm-control"
-      ]
-    },
-    {
-      "code": "NET-SFP-005",
-      "title": "Проблемы с оптическим трансивером (SFP)",
-      "description": "Порт up, но ошибки CRC, потери пакетов, нестабильный линк.",
-      "symptoms": ["crc", "input errors", "sfp", "оптика", "rx power low"],
-      "keywords": ["sfp", "оптика", "трансивер", "crc", "rx power", "dom"],
-      "category": "Физический уровень",
-      "recommended_actions": [
-        "Проверить DOM (оптическую мощность Tx/Rx)",
-        "Поменять трансивер и/или патч-корд",
-        "Проверить чистоту коннекторов",
-        "Сравнить с известным рабочим SFP",
-        "Проверить совместимость (vendor lock)"
-      ]
-    },
-    {
-      "code": "NET-DHCP-006",
-      "title": "DHCP relay не передаёт запросы / клиенты не получают IP",
-      "description": "Устройства в VLAN не получают адреса от DHCP-сервера, хотя сервер доступен в другой подсети.",
-      "symptoms": ["dhcp", "нет ip", "apiPA", "169.254", "dhcp timeout"],
-      "keywords": ["dhcp", "relay", "helper-address", "ip helper", "option 82", "snooping"],
-      "category": "L3",
-      "recommended_actions": [
-        "Проверить ip helper-address / DHCP relay на SVI",
-        "Убедиться, что DHCP-сервер доступен с маршрутизатора",
-        "Проверить DHCP snooping и trusted порты",
-        "Проверить Option 82 (если включён)",
-        "Сделать capture DHCP Discover/Offer на uplink"
-      ]
-    },
-    {
-      "code": "NET-LAG-007",
-      "title": "Не работает агрегация портов (LACP / EtherChannel)",
-      "description": "Port-channel в состоянии down или не все члены в bundle, трафик идёт только по одному линку.",
-      "symptoms": ["lacp", "port-channel down", "bundle", "несовпадение", "suspended"],
-      "keywords": ["lacp", "etherchannel", "port-channel", "lag", "bundle", "pagp"],
-      "category": "L2",
-      "recommended_actions": [
-        "Сверить mode (active/passive) и скорость/duplex на обоих концах",
-        "Проверить allowed VLAN list на всех членах bundle",
-        "Убедиться в совпадении MTU и native VLAN",
-        "Проверить LACP system-id и приоритет",
-        "Посмотреть статус suspended-портов в bundle"
-      ]
-    },
-    {
-      "code": "NET-BGP-008",
-      "title": "BGP-соседство не устанавливается (Idle/Active)",
-      "description": "Сессия BGP остаётся в Idle или Active, маршруты от upstream не приходят.",
-      "symptoms": ["bgp", "idle", "active", "нет соседа", "peer down"],
-      "keywords": ["bgp", "peer", "as", "ebgp", "ibgp", "multihop", "ttl"],
-      "category": "Маршрутизация",
-      "recommended_actions": [
-        "Проверить reachability до neighbor IP (ping, traceroute)",
-        "Сверить AS number, пароли и source interface",
-        "Проверить ACL на входящий TCP 179",
-        "Для eBGP multihop — проверить ttl-security и ebgp-multihop",
-        "Посмотреть логи: hold timer expired, notification"
-      ]
-    },
-    {
-      "code": "NET-OSPF-009",
-      "title": "OSPF-соседство не формируется (ExStart/Init)",
-      "description": "Маршрутизаторы видят Hello, но соседство застревает в Init или ExStart, маршруты не обмениваются.",
-      "symptoms": ["ospf", "init", "exstart", "нет соседа", "dead timer"],
-      "keywords": ["ospf", "neighbor", "area", "hello", "mtu", "auth", "dr", "bdr"],
-      "category": "Маршрутизация",
-      "recommended_actions": [
-        "Проверить совпадение area, network type и hello/dead interval",
-        "Сверить MTU на интерфейсах (частая причина ExStart)",
-        "Проверить authentication key / MD5",
-        "Убедиться, что ACL не блокирует multicast 224.0.0.5/6",
-        "Проверить passive-interface и stub/NSSA настройки"
-      ]
-    },
-    {
-      "code": "NET-ACL-010",
-      "title": "ACL блокирует легитимный трафик",
-      "description": "Связность есть на L2/L3, но конкретные сервисы недоступны из-за фильтрации на маршрутизаторе или коммутаторе.",
-      "symptoms": ["acl", "deny", "timeout", "filtered", "недоступен порт"],
-      "keywords": ["acl", "access-list", "deny", "permit", "фильтр", "firewall"],
-      "category": "Безопасность",
-      "recommended_actions": [
-        "Найти применённый ACL (in/out) на интерфейсе",
-        "Проверить порядок правил и implicit deny",
-        "Сверить hit-count на правилах ACL",
-        "Сделать packet capture до и после ACL",
-        "Временно добавить permit log для диагностики"
-      ]
-    },
-    {
-      "code": "NET-MTU-011",
-      "title": "Проблемы с MTU / black hole для больших пакетов",
-      "description": "Мелкие пакеты проходят, крупные (FTP, iSCSI, VPN) обрываются; ping с большим размером не проходит.",
-      "symptoms": ["mtu", "black hole", "fragment", "большие пакеты", "df bit"],
-      "keywords": ["mtu", "mss", "fragmentation", "pmtud", "df", "jumbo"],
-      "category": "L3",
-      "recommended_actions": [
-        "Проверить MTU на всех hop'ах (path MTU discovery)",
-        "Сверить MTU на tunnel/VPN интерфейсах",
-        "Настроить TCP MSS clamping на WAN",
-        "Проверить поддержку jumbo frames end-to-end",
-        "Тестировать ping с DF и разными размерами"
-      ]
-    },
-    {
-      "code": "NET-MCAST-012",
-      "title": "Multicast-трафик не доходит до получателей (IGMP/PIM)",
-      "description": "IPTV, видеоконференции или голос по multicast не работают, хотя unicast в порядке.",
-      "symptoms": ["multicast", "igmp", "iptv", "нет потока", "pim"],
-      "keywords": ["multicast", "igmp", "pim", "rp", "snooping", "mrouter"],
-      "category": "L2/L3",
-      "recommended_actions": [
-        "Проверить IGMP snooping и mrouter port на коммутаторах",
-        "Убедиться, что PIM (sparse/dense) включён на L3 интерфейсах",
-        "Проверить RP и MSDP (для PIM-SM)",
-        "Проверить (*,G) и (S,G) в таблице multicast",
-        "Сделать capture IGMP Join/Leave на access-порту"
-      ]
-    },
-    {
-      "code": "NET-QOS-013",
-      "title": "Деградация QoS — голос/видео страдает при нагрузке",
-      "description": "VoIP рвётся, видео дёргается при загрузке канала, хотя пропускная способность формально достаточна.",
-      "symptoms": ["qos", "jitter", "потери", "голос", "приоритет", "очередь"],
-      "keywords": ["qos", "dscp", "cos", "priority", "shaping", "policing", "queue"],
-      "category": "QoS",
-      "recommended_actions": [
-        "Проверить trust boundary (DSCP/COS) на access и uplink",
-        "Убедиться, что voice/video класс в policy-map",
-        "Проверить shaping/policing на WAN — нет ли агрессивного limit",
-        "Сверить queueing (LLQ, WRED) на перегруженных интерфейсах",
-        "Сделать capture и проверить маркировку DSCP end-to-end"
-      ]
-    },
-    {
-      "code": "NET-NTP-014",
-      "title": "Рассинхронизация времени (NTP)",
-      "description": "Часы на оборудовании уходят, логи с неверными метками, сертификаты и AAA могут отказывать.",
-      "symptoms": ["ntp", "время", "unsynchronized", "clock", "stratum"],
-      "keywords": ["ntp", "синхронизация", "время", "clock", "stratum", "ntp server"],
-      "category": "Управление",
-      "recommended_actions": [
-        "Проверить reachability до NTP-серверов (UDP 123)",
-        "Убедиться, что ACL не блокирует NTP",
-        "Проверить настройку ntp server / ntp peer",
-        "Сверить timezone и daylight saving",
-        "При необходимости настроить локальный NTP master"
-      ]
-    },
-    {
-      "code": "NET-SNMP-015",
-      "title": "SNMP-мониторинг недоступен / таймауты опроса",
-      "description": "NMS не получает данные с устройства, графики пустые, алерты не приходят.",
-      "symptoms": ["snmp", "timeout", "no response", "мониторинг", "unreachable"],
-      "keywords": ["snmp", "community", "v3", "polling", "trap", "nms"],
-      "category": "Управление",
-      "recommended_actions": [
-        "Проверить SNMP community / v3 user и права (RO/RW)",
-        "Убедиться, что ACL разрешает опрос с NMS",
-        "Проверить source-interface для SNMP trap",
-        "Сверить версию SNMP (v2c vs v3) на NMS и устройстве",
-        "Тестировать snmpwalk с сервера мониторинга"
-      ]
-    },
-    {
-      "code": "NET-STACK-016",
-      "title": "Сбой стекирования коммутаторов (StackWise/VSF/IRF)",
-      "description": "Стек распался, часть коммутаторов offline, переключение master, потеря конфигурации портов.",
-      "symptoms": ["stack", "split", "master", "offline member", "стек"],
-      "keywords": ["stack", "stackwise", "vsf", "irf", "master", "member", "split"],
-      "category": "Аппаратная часть",
-      "recommended_actions": [
-        "Проверить stack-кабели и разъёмы на всех членах",
-        "Посмотреть роль master/standby и приоритет",
-        "Проверить питание и температуру всех членов стека",
-        "Сверить версии IOS/прошивки в стеке",
-        "При split-brain — определить активный сегмент и изолировать лишний"
-      ]
-    },
-    {
-      "code": "NET-PSU-017",
-      "title": "Отказ блока питания / перегрузка PSU",
-      "description": "Коммутатор работает на одном PSU, алерт power supply failed, риск отключения при потере второго.",
-      "symptoms": ["psu", "power supply", "failed", "redundant", "один блок"],
-      "keywords": ["psu", "питание", "power supply", "redundancy", "блок питания"],
-      "category": "Питание",
-      "recommended_actions": [
-        "Проверить индикацию и статус PSU в CLI",
-        "Переподключить кабель питания к исправной розетке/PDU",
-        "Заменить неисправный блок питания",
-        "Проверить суммарное потребление (PoE + базовая нагрузка)",
-        "Убедиться в работе резервирования N+1"
-      ]
-    },
-    {
-      "code": "NET-FAN-018",
-      "title": "Сбой вентиляторов / перегрев оборудования",
-      "description": "Алерт fan failure, повышенная температура шасси, возможен thermal shutdown.",
-      "symptoms": ["fan", "перегрев", "temperature", "thermal", "вентилятор"],
-      "keywords": ["fan", "вентилятор", "temperature", "thermal", "overheat", "cooling"],
-      "category": "Аппаратная часть",
-      "recommended_actions": [
-        "Проверить статус fan tray в show environment",
-        "Очистить воздухозаборники и фильтры",
-        "Проверить температуру в стойке и обдув",
-        "Заменить неисправный модуль вентиляторов",
-        "Проверить загрузку PoE и заполненность стойки"
-      ]
-    },
-    {
-      "code": "NET-MGMT-019",
-      "title": "Недоступен management-доступ (SSH/Telnet/HTTPS)",
-      "description": "Невозможно зайти на устройство по сети, хотя data plane работает.",
-      "symptoms": ["ssh", "telnet", "недоступен", "timeout", "management", "vty"],
-      "keywords": ["ssh", "telnet", "mgmt", "vty", "management", "console"],
-      "category": "Управление",
-      "recommended_actions": [
-        "Проверить IP на management VLAN / interface",
-        "Проверить маршрут до устройства и default gateway",
-        "Убедиться, что VTY ACL не блокирует источник",
-        "Проверить transport input ssh / line vty",
-        "Подключиться через console/out-of-band при необходимости"
-      ]
-    },
-    {
-      "code": "NET-PORTSEC-020",
-      "title": "Port Security заблокировал порт (violation shutdown)",
-      "description": "Access-порт ушёл в err-disabled из-за превышения лимита MAC-адресов или несанкционированного устройства.",
-      "symptoms": ["port security", "err-disabled", "violation", "shutdown", "sticky"],
-      "keywords": ["port security", "mac limit", "violation", "err-disable", "sticky mac"],
-      "category": "Безопасность",
-      "recommended_actions": [
-        "Проверить причину violation (show port-security interface)",
-        "Очистить sticky/learned MAC при смене устройства",
-        "Настроить violation restrict/shutdown по политике",
-        "Выполнить shutdown/no shutdown или errdisable recovery",
-        "Сверить maximum MAC и разрешённые устройства"
-      ]
-    },
-    {
-      "code": "NET-HSRP-021",
-      "title": "Сбой HSRP/VRRP — нет виртуального шлюза",
-      "description": "Хосты теряют default gateway, виртуальный IP не отвечает на ARP, flapping между роутерами.",
-      "symptoms": ["hsrp", "vrrp", "gateway", "arp", "standby", "preempt"],
-      "keywords": ["hsrp", "vrrp", "virtual ip", "standby", "preempt", "track"],
-      "category": "L3",
-      "recommended_actions": [
-        "Проверить состояние Active/Standby на обоих роутерах",
-        "Сверить group number, VIP и priority/preempt",
-        "Проверить track interface — не ушёл ли в fail",
-        "Убедиться, что preempt включён после восстановления",
-        "Проверить split-brain и изоляцию между роутерами"
-      ]
-    },
-    {
-      "code": "NET-AAA-022",
-      "title": "Сбой AAA / RADIUS — не пускает на устройство",
-      "description": "Администратор не может авторизоваться, timeout при обращении к RADIUS/TACACS+.",
-      "symptoms": ["aaa", "radius", "tacacs", "authentication failed", "timeout"],
-      "keywords": ["aaa", "radius", "tacacs", "authentication", "authorization", "ise"],
-      "category": "Безопасность",
-      "recommended_actions": [
-        "Проверить reachability до RADIUS/TACACS сервера",
-        "Сверить shared secret и source-interface",
-        "Проверить ACL и порт (1812/1813, 49)",
-        "Временно включить local fallback для доступа",
-        "Посмотреть логи на сервере AAA (reject, timeout)"
-      ]
-    },
-    {
-      "code": "NET-FLAP-023",
-      "title": "Flapping интерфейса — нестабильный линк",
-      "description": "Порт циклически переходит Up/Down, BGP/OSPF соседства падают, логи забиты link state changes.",
-      "symptoms": ["flapping", "up down", "link state", "нестабильный", "bounce"],
-      "keywords": ["flap", "flapping", "up down", "debounce", "link state", "dcd"],
-      "category": "Физический уровень",
-      "recommended_actions": [
-        "Проверить кабель, патч-панель и трансивер",
-        "Посмотреть DOM и температуру SFP",
-        "Включить debounce/timer на порту (если поддерживается)",
-        "Проверить auto-negotiation vs fixed speed/duplex",
-        "Заменить порт или переместить на другой модуль"
-      ]
-    },
-    {
-      "code": "NET-CPU-024",
-      "title": "Высокая загрузка CPU на коммутаторе/маршрутизаторе",
-      "description": "Control plane перегружен, медленный отклик CLI, потери keepalive, соседства рвутся.",
-      "symptoms": ["cpu", "high utilization", "медленно", "control plane", "перегрузка"],
-      "keywords": ["cpu", "process", "control plane", "netinput", "spanning tree", "routing"],
-      "category": "Производительность",
-      "recommended_actions": [
-        "Определить топ процессов (show processes cpu sorted)",
-        "Проверить broadcast storm и петли STP",
-        "Проверить количество маршрутов и MAC в таблицах",
-        "Ограничить скорость ICMP/SSH к устройству (control-plane policing)",
-        "Обновить прошивку при известных багах high CPU"
-      ]
-    },
-    {
-      "code": "NET-MEM-025",
-      "title": "Нехватка памяти / memory leak",
-      "description": "Алерты low memory, невозможность применить конфигурацию, crash процессов routing stack.",
-      "symptoms": ["memory", "low memory", "oom", "leak", "alloc failed"],
-      "keywords": ["memory", "память", "heap", "leak", "buffer", "oom"],
-      "category": "Производительность",
-      "recommended_actions": [
-        "Проверить show memory / show processes memory",
-        "Определить процесс с ростом потребления",
-        "Сократить размер routing/ARP/MAC таблиц",
-        "Запланировать перезагрузку в окно обслуживания",
-        "Обратиться к вендору при подозрении на memory leak"
-      ]
-    }
+    {"code": "NET-LINK-001", "title": "Потеря линка на порту", "description": "Порт Down, нет трафика.", "failure_mode": "Полный отказ", "symptoms": ["link down", "port down", "interface down"], "keywords": ["link", "down", "линк", "порт"], "category": "Сетевое подключение / Связь", "recommended_actions": ["Проверить кабель", "Проверить SFP", "Counters ошибок"]},
+    {"code": "NET-POE-001", "title": "Устройство не получает PoE", "description": "Камера/точка доступа не питается.", "failure_mode": "Полный отказ", "symptoms": ["poe", "не питается", "power inline"], "keywords": ["poe", "питание", "af", "at"], "category": "Питание", "recommended_actions": ["Проверить бюджет PoE", "Класс устройства", "Кабель"]},
+    {"code": "NET-STP-001", "title": "Петля STP / Broadcast storm", "description": "Сеть тормозит, шторм broadcast.", "failure_mode": "Деградация", "symptoms": ["шторм", "broadcast storm", "stp loop"], "keywords": ["stp", "loop", "broadcast"], "category": "L2 / Switching", "recommended_actions": ["Найти порт с штормом", "BPDU Guard", "Storm control"]},
+    {"code": "NET-SFP-001", "title": "Проблемы с SFP трансивером", "description": "Ошибки CRC, низкая мощность оптики.", "failure_mode": "Деградация", "symptoms": ["crc errors", "rx power low", "sfp"], "keywords": ["sfp", "оптика", "crc", "dom"], "category": "Сетевое подключение / Связь", "recommended_actions": ["Проверить DOM", "Поменять SFP/кабель", "Чистота коннекторов"]},
+    {"code": "NET-BGP-001", "title": "BGP сосед не поднимается", "description": "Сессия в Idle/Active.", "failure_mode": "Полный отказ", "symptoms": ["bgp idle", "peer down"], "keywords": ["bgp", "peer", "as"], "category": "Маршрутизация и L3", "recommended_actions": ["Reachability", "AS/password", "ACL 179"]},
+    {"code": "NET-OSPF-001", "title": "OSPF соседство ExStart/Init", "description": "Не формируется соседство.", "failure_mode": "Деградация", "symptoms": ["ospf exstart", "no neighbor"], "keywords": ["ospf", "exstart", "mtu"], "category": "Маршрутизация и L3", "recommended_actions": ["MTU", "Area/hello timers", "Auth"]},
+    {"code": "NET-LAG-001", "title": "LACP не поднимается", "description": "Port-channel suspended.", "failure_mode": "Полный отказ", "symptoms": ["lacp", "port-channel down", "suspended"], "keywords": ["lacp", "bundle", "lag"], "category": "L2 / Switching", "recommended_actions": ["Mode active/passive", "Speed/duplex", "Allowed VLAN"]},
+    {"code": "NET-ACL-001", "title": "ACL блокирует трафик", "description": "Легитимный трафик дропается.", "failure_mode": "Деградация", "symptoms": ["acl deny", "filtered"], "keywords": ["acl", "deny", "фильтр"], "category": "Безопасность и доступ", "recommended_actions": ["Найти ACL", "Hit counts", "Capture"]},
+    {"code": "NET-MTU-001", "title": "MTU blackholing", "description": "Большие пакеты обрываются.", "failure_mode": "Деградация", "symptoms": ["mtu", "black hole", "fragment"], "keywords": ["mtu", "pmtud", "jumbo"], "category": "Маршрутизация и L3", "recommended_actions": ["Path MTU", "MSS clamp", "Test ping DF"]},
+    {"code": "NET-HSRP-001", "title": "HSRP/VRRP нет активного", "description": "Нет виртуального шлюза.", "failure_mode": "Полный отказ", "symptoms": ["hsrp", "no gateway", "standby"], "keywords": ["hsrp", "vrrp", "virtual ip"], "category": "Маршрутизация и L3", "recommended_actions": ["Active/Standby", "Priority/preempt", "Track"]},
+    {"code": "NET-FAN-001", "title": "Сбой вентиляторов", "description": "Fan failure, перегрев.", "failure_mode": "Деградация", "symptoms": ["fan failure", "temperature high"], "keywords": ["fan", "temperature", "thermal"], "category": "Охлаждение и вентиляция", "recommended_actions": ["Show environment", "Очистить фильтры", "Заменить fan tray"]},
+    {"code": "NET-MGMT-001", "title": "Management недоступен", "description": "SSH/HTTPS не работает.", "failure_mode": "Полный отказ", "symptoms": ["ssh timeout", "management down"], "keywords": ["ssh", "management", "vty"], "category": "Мониторинг, управление и сервисы", "recommended_actions": ["Management IP", "ACL", "Console fallback"]},
+    {"code": "NET-PORTSEC-001", "title": "Port Security violation err-disabled", "description": "Порт заблокирован по security.", "failure_mode": "Деградация", "symptoms": ["err-disabled", "violation"], "keywords": ["port security", "err-disable"], "category": "Безопасность и доступ", "recommended_actions": ["Причина violation", "Clear sticky", "Errdisable recovery"]},
+    {"code": "NET-CPU-001", "title": "High CPU control plane", "description": "CLI медленный, соседства падают.", "failure_mode": "Деградация", "symptoms": ["high cpu", "control plane"], "keywords": ["cpu", "control plane", "high utilization"], "category": "Производительность", "recommended_actions": ["Top processes", "Storm/loop", "CoPP"]},
+    {"code": "NET-QOS-001", "title": "QoS деградация голоса/видео", "description": "Jitter, потери при нагрузке.", "failure_mode": "Деградация", "symptoms": ["jitter", "voice quality bad"], "keywords": ["qos", "dscp", "jitter"], "category": "Производительность", "recommended_actions": ["Trust boundary", "Policy map", "LLQ check"]},
+    {"code": "NET-NTP-001", "title": "NTP рассинхронизация", "description": "Время ушло, проблемы с certs.", "failure_mode": "Деградация", "symptoms": ["ntp unsynced", "clock skew"], "keywords": ["ntp", "time", "stratum"], "category": "Мониторинг, управление и сервисы", "recommended_actions": ["NTP servers", "Reachability", "Timezone"]},
+    {"code": "NET-SNMP-001", "title": "SNMP polling timeout", "description": "NMS не получает данные.", "failure_mode": "Деградация", "symptoms": ["snmp timeout", "no response"], "keywords": ["snmp", "polling", "community"], "category": "Мониторинг, управление и сервисы", "recommended_actions": ["Community/v3 user", "ACL для NMS", "Source interface"]},
+    {"code": "NET-STACK-001", "title": "Сбой стекирования", "description": "Стек распался, master lost.", "failure_mode": "Полный отказ", "symptoms": ["stack split", "member offline"], "keywords": ["stack", "stackwise", "vsf"], "category": "Аппаратная часть", "recommended_actions": ["Stack cables", "Master/priority", "Firmware match"]},
+    {"code": "NET-PSU-001", "title": "Отказ PSU коммутатора", "description": "Работа на одном блоке.", "failure_mode": "Деградация", "symptoms": ["psu failed", "redundant power lost"], "keywords": ["psu", "power supply"], "category": "Питание", "recommended_actions": ["Status PSU", "Переподключить", "Заменить"]},
+    {"code": "NET-VLAN-001", "title": "Меж-VLAN routing не работает", "description": "Трафик между VLAN не проходит.", "failure_mode": "Деградация", "symptoms": ["no inter vlan", "svi down"], "keywords": ["vlan", "svi", "routing"], "category": "L2/L3", "recommended_actions": ["Access/trunk", "SVI status", "ACL"]},
+    {"code": "NET-DHCP-001", "title": "DHCP relay не работает", "description": "Клиенты не получают IP.", "failure_mode": "Полный отказ", "symptoms": ["dhcp timeout", "169.254"], "keywords": ["dhcp", "relay", "ip helper"], "category": "L3", "recommended_actions": ["ip helper-address", "Server reachability", "Snooping trusted"]},
+    {"code": "NET-IGMP-001", "title": "Multicast не доходит", "description": "IPTV/multicast не работает.", "failure_mode": "Деградация", "symptoms": ["no multicast", "igmp join fail"], "keywords": ["multicast", "igmp", "pim"], "category": "L2/L3", "recommended_actions": ["IGMP snooping mrouter", "PIM config", "RP"]},
+    {"code": "NET-FLAP-001", "title": "Flapping порта", "description": "Порт up/down циклически.", "failure_mode": "Интермиттент", "symptoms": ["flapping", "up down"], "keywords": ["flap", "link state"], "category": "Сетевое подключение / Связь", "recommended_actions": ["Кабель/SFP", "Debounce", "Auto-neg"]},
+    {"code": "NET-AAA-001", "title": "AAA/RADIUS не пускает", "description": "Login timeout или reject.", "failure_mode": "Полный отказ", "symptoms": ["aaa timeout", "radius fail"], "keywords": ["aaa", "radius", "tacacs"], "category": "Безопасность и доступ", "recommended_actions": ["Server reachability", "Shared secret", "Fallback local"]},
+    {"code": "NET-ARP-001", "title": "ARP issues / incomplete", "description": "ARP не резолвит, incomplete entries.", "failure_mode": "Деградация", "symptoms": ["arp incomplete", "no mac"], "keywords": ["arp", "incomplete"], "category": "L3", "recommended_actions": ["Proxy arp", "ACL", "Gratuitous"]},
+    {"code": "NET-SPAN-001", "title": "SPAN/RSPAN не работает", "description": "Мониторинг порт не получает трафик.", "failure_mode": "Деградация", "symptoms": ["span no traffic", "monitor session"], "keywords": ["span", "monitor", "rspan"], "category": "Мониторинг, управление и сервисы", "recommended_actions": ["Source/dest ports", "Vlan filter", "Direction rx/tx"]},
+    {"code": "NET-ECN-001", "title": "ECN / congestion notification", "description": "Проблемы с marked packets, drops.", "failure_mode": "Деградация", "symptoms": ["ecn", "congestion"], "keywords": ["ecn", "wred"], "category": "Производительность", "recommended_actions": ["WRED config", "Queue thresholds", "Test with iperf"]},
+    {"code": "NET-FIREWALL-001", "title": "Zone-based firewall blocks", "description": "Трафик дропается zone policy.", "failure_mode": "Деградация", "symptoms": ["zone drop", "policy deny"], "keywords": ["zone", "fw", "policy"], "category": "Безопасность и доступ", "recommended_actions": ["Show policy", "Class-map", "Log drops"]},
+    {"code": "NET-VXLAN-001", "title": "VXLAN / EVPN issues", "description": "VTEP не видит remote.", "failure_mode": "Полный отказ", "symptoms": ["vxlan vni down", "no evpn"], "keywords": ["vxlan", "evpn", "vtep"], "category": "L2/L3", "recommended_actions": ["VNI state", "Underlay", "BGP EVPN"]},
+    {"code": "NET-LOAD-001", "title": "Load balancer pool down", "description": "Backend servers marked down.", "failure_mode": "Деградация", "symptoms": ["pool down", "health check fail"], "keywords": ["loadbalancer", "pool", "health"], "category": "Производительность", "recommended_actions": ["Health check config", "Backend status", "Logs"]},
+    {"code": "NET-WIRELESS-001", "title": "AP не присоединяется к WLC", "description": "Access point не регистрируется.", "failure_mode": "Полный отказ", "symptoms": ["ap not join", "wlc"], "keywords": ["ap", "wlc", "capwap"], "category": "Сетевое подключение / Связь", "recommended_actions": ["CAPWAP reachability", "Certificates", "WLC config"]},
+    {"code": "NET-CABLE-001", "title": "Проблемы с кабельным хозяйством", "description": "Кросс, патч-панель, dirty fiber.", "failure_mode": "Деградация", "symptoms": ["dirty fiber", "bad patch"], "keywords": ["кабель", "patch", "fiber", "dirty"], "category": "Сетевое подключение / Связь", "recommended_actions": ["Inspect patch", "Clean fiber", "OTDR if needed"]},
+    {"code": "NET-SDWAN-001", "title": "SD-WAN tunnel down", "description": "Overlay не поднимается.", "failure_mode": "Полный отказ", "symptoms": ["sdwan tunnel down", "omp down"], "keywords": ["sdwan", "tunnel", "omp"], "category": "Маршрутизация и L3", "recommended_actions": ["Underlay", "Cert", "OMP status"]},
+    {"code": "NET-MACSEC-001", "title": "MACsec session not up", "description": "Шифрование линка не работает.", "failure_mode": "Деградация", "symptoms": ["macsec fail", "mka"], "keywords": ["macsec", "mka", "encryption"], "category": "Безопасность и доступ", "recommended_actions": ["MKA policy", "Pre-shared key", "Show macsec"]},
+    {"code": "NET-OTDR-001", "title": "Fiber cut / high loss", "description": "Высокие потери на волокне.", "failure_mode": "Полный отказ", "symptoms": ["high loss", "fiber cut"], "keywords": ["fiber", "loss", "otdr"], "category": "Сетевое подключение / Связь", "recommended_actions": ["OTDR test", "Repair splice", "Replace fiber"]},
+    {"code": "NET-AUTONEG-001", "title": "Auto-negotiation mismatch", "description": "Link up но ошибки, duplex mismatch.", "failure_mode": "Деградация", "symptoms": ["duplex mismatch", "late collision"], "keywords": ["autoneg", "duplex", "speed"], "category": "Сетевое подключение / Связь", "recommended_actions": ["Hardcode speed/duplex", "Check both ends", "Cables"]},
+    {"code": "NET-ISIS-001", "title": "ISIS adjacency not forming", "description": "ISIS не поднимает adjacency.", "failure_mode": "Полный отказ", "symptoms": ["isis adj down", "no isis"], "keywords": ["isis", "adjacency", "clns"], "category": "Маршрутизация и L3", "recommended_actions": ["MTU", "NET address", "Auth", "Level"]},
+    {"code": "NET-MPLS-001", "title": "MPLS LDP session down", "description": "LDP не поднимается.", "failure_mode": "Полный отказ", "symptoms": ["ldp session down"], "keywords": ["mpls", "ldp", "label"], "category": "Маршрутизация и L3", "recommended_actions": ["IGP", "Router ID", "Transport address"]},
+    {"code": "NET-BFD-001", "title": "BFD session down", "description": "BFD не обнаруживает быстро.", "failure_mode": "Деградация", "symptoms": ["bfd down", "fast detect"], "keywords": ["bfd", "fast detect"], "category": "Маршрутизация и L3", "recommended_actions": ["BFD config", "Timers match", "ACL"]},
+    {"code": "NET-TELEMETRY-001", "title": "Streaming telemetry not sending", "description": "No data to collector.", "failure_mode": "Деградация", "symptoms": ["no telemetry", "grpc fail"], "keywords": ["telemetry", "grpc", "yang"], "category": "Мониторинг, управление и сервисы", "recommended_actions": ["Destination", "Subscription", "Cert"]},
+    {"code": "NET-DOT1X-001", "title": "802.1X authentication fail", "description": "Port not authorized.", "failure_mode": "Полный отказ", "symptoms": ["dot1x fail", "unauthorized"], "keywords": ["dot1x", "radius", "mab"], "category": "Безопасность и доступ", "recommended_actions": ["Radius", "Supplicant", "MAB fallback"]},
+    {"code": "NET-ROUTEMAP-001", "title": "Route-map not matching", "description": "Prefix not filtered as expected.", "failure_mode": "Деградация", "symptoms": ["route map issue"], "keywords": ["route-map", "prefix-list"], "category": "Маршрутизация и L3", "recommended_actions": ["Show route-map", "ACL/prefix", "Sequence"]},
+    {"code": "NET-OSPFV3-001", "title": "OSPFv3 issues IPv6", "description": "IPv6 routing not working.", "failure_mode": "Полный отказ", "symptoms": ["ospfv3 down"], "keywords": ["ospfv3", "ipv6"], "category": "Маршрутизация и L3", "recommended_actions": ["Address family", "Area", "Auth"]},
+    {"code": "NET-VRF-001", "title": "VRF leak or isolation issue", "description": "Traffic leaking between VRF.", "failure_mode": "Деградация", "symptoms": ["vrf leak"], "keywords": ["vrf", "import", "export"], "category": "L3", "recommended_actions": ["RT import/export", "Route leaking config", "Test ping"]},
+    {"code": "NET-PIM-001", "title": "PIM sparse mode problems", "description": "Multicast RP issues.", "failure_mode": "Деградация", "symptoms": ["pim rp", "no (*,G)"], "keywords": ["pim", "rp", "sparse"], "category": "L2/L3", "recommended_actions": ["RP config", "BSR", "Join"]},
+    {"code": "NET-OTV-001", "title": "OTV adjacency down", "description": "Site not extending.", "failure_mode": "Полный отказ", "symptoms": ["otv adj down"], "keywords": ["otv", "overlay"], "category": "L2/L3", "recommended_actions": ["Site VLAN", "Join interface", "ED"]},
+    {"code": "NET-FCOE-001", "title": "FCoE not logging in", "description": "FC over Ethernet issues.", "failure_mode": "Полный отказ", "symptoms": ["fcoe login fail"], "keywords": ["fcoe", "vfc", "fc"], "category": "Хранение данных", "recommended_actions": ["VFC", "VSAN", "FIP"]},
+    {"code": "NET-STORAGE-001", "title": "iSCSI login fail", "description": "Initiator not connecting to target.", "failure_mode": "Полный отказ", "symptoms": ["iscsi login error"], "keywords": ["iscsi", "target", "initiator"], "category": "Хранение данных", "recommended_actions": ["Target IP", "CHAP", "Portal", "Firewall 3260"]},
+    {"code": "NET-CABLE-002", "title": "Dirty or damaged fiber", "description": "High BER, power low.", "failure_mode": "Деградация", "symptoms": ["high ber", "dirty fiber"], "keywords": ["fiber", "dirty", "ber", "power"], "category": "Сетевое подключение / Связь", "recommended_actions": ["Clean connectors", "Inspect", "Replace patch cord"]}
   ]
 }

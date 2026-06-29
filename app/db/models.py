@@ -57,6 +57,7 @@ class Fault(Base):
     keywords: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
 
     category: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    failure_mode: Mapped[str | None] = mapped_column(String(64), nullable=True)
     recommended_actions: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
 
     # Произвольные метаданные (модель оборудования, версии и т.д.)

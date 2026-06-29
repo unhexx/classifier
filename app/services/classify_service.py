@@ -30,6 +30,8 @@ def classify_context(db: Session, request: ClassifyRequest) -> ClassifyResponse:
     classify_req = request.model_copy(update={"context": cleaned_text})
     result = engine.classify(classify_req)
 
+    typical = result.matches[0].title if result.matches else None
+
     response = ClassifyResponse(
         catalog=result.catalog,
         context=cleaned_text,
@@ -42,6 +44,8 @@ def classify_context(db: Session, request: ClassifyRequest) -> ClassifyResponse:
         scoring_time_ms=result.processing_time_ms,
         pd_cleaning_time_ms=pd_time_ms,
         scoring_weights=result.scoring_weights,
+        typical_malfunction=typical,
+        presumed_typical_malfunction=request.presumed_typical_malfunction,
     )
 
     if settings.enable_classification_logging and response.matches:
@@ -75,6 +79,8 @@ def get_classification_history(db: Session, limit: int | None = None) -> list[Hi
             id=row.id,
             catalog_name=row.catalog_name,
             context=row.context,
+            original_context=row.original_context,
+            pd_entities=row.pd_entities_json or [],
             top_matches=row.top_matches_json,
             top_confidence=row.top_confidence,
             processing_time_ms=row.processing_time_ms,

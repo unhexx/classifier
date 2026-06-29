@@ -194,6 +194,7 @@ class ClassifierEngine:
                 title=s.fault.title,
                 description=s.fault.description,
                 category=s.fault.category,
+                failure_mode=s.fault.failure_mode,
                 confidence=s.score,
                 matched_reasons=s.reasons if request.include_scoring_details else s.reasons,
                 recommended_actions=s.fault.recommended_actions,
@@ -210,6 +211,8 @@ class ClassifierEngine:
             total_candidates=len(index.faults),
             processing_time_ms=round(elapsed, 2),
             scoring_weights=scorer.weight_dict if request.include_scoring_details else None,
+            typical_malfunction=matches[0].title if matches else None,
+            presumed_typical_malfunction=request.presumed_typical_malfunction,
         )
 
     def get_faults_for_catalog(self, name: str) -> list[dict[str, Any]]:
@@ -224,6 +227,7 @@ class ClassifierEngine:
                 "symptoms": f.symptoms,
                 "keywords": f.keywords,
                 "category": f.category,
+                "failure_mode": f.failure_mode,
                 "recommended_actions": f.recommended_actions,
             }
             for f in idx.faults

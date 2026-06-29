@@ -19,14 +19,18 @@ class FaultRecord:
     symptoms: list[str]
     keywords: list[str]
     category: str | None
+    failure_mode: str | None
     recommended_actions: list[str]
     # Полный текст для fuzzy (кешируем)
     _search_text: str = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
-        self._search_text = " ".join(
-            [self.title, self.description] + self.symptoms + self.keywords
-        ).lower()
+        parts = [self.title, self.description] + self.symptoms + self.keywords
+        if self.failure_mode:
+            parts.append(self.failure_mode)
+        if self.category:
+            parts.append(self.category)
+        self._search_text = " ".join(parts).lower()
 
 
 @dataclass
@@ -76,6 +80,7 @@ class CatalogRegistry:
                     symptoms=f.symptoms or [],
                     keywords=f.keywords or [],
                     category=f.category,
+                    failure_mode=f.failure_mode,
                     recommended_actions=f.recommended_actions or [],
                 )
                 records.append(rec)

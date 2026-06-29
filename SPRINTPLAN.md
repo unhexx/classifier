@@ -10,15 +10,14 @@ Complete 10 targeted iterations to mature the unified fault classification servi
 
 **Target outcome:** DONE — v0.2.0 released.
 
-## Current State (post Cycle 2)
+## Current State (post P1-08 implementation)
 
-- 4 catalogs: servers (28), network (25), automotive (14), industrial (14) — 81 total faults
-- Hybrid scorer: keyword + fuzzy + trigram
-- Classification history, Admin CRUD API, structured context
-- 39 tests, 92% coverage
-- Docs: USAGE, ARCHITECTURE, DEPLOYMENT
-- Docker multi-stage, Makefile, CI workflow
-- Version 0.2.0
+- 4 каталога высокого качества (servers ~50+, network ~50+, automotive ~40+, industrial ~40+) — построены по принципам FMEA, ITIL и CMMS.
+- Гибридный скорер: keyword + fuzzy + trigram
+- Полная поддержка PD cleaning + feedback loop
+- Улучшенная документация по каталогам (CATALOG_DESIGN.md)
+- 92%+ coverage, тесты на качество справочников
+- Версия 0.3+ / приближение к v1.0
 
 ## 10 Iterations — Status
 
@@ -37,10 +36,11 @@ Complete 10 targeted iterations to mature the unified fault classification servi
 
 ## Backlog (future sprints)
 
-- sentence-transformers as first-class optional matcher
-- Web UI demo (HTMX or Streamlit)
-- Export/import catalogs (JSONL or zip)
-- Integration examples (monitoring, ticketing)
+- sentence-transformers as first-class optional matcher (P0-02)
+- Полноценный релиз v1.0 (packaging, CI, docs, release automation)
+- Export/import + bulk операции с каталогами
+- Расширение количества записей в каталогах до production уровня
+- Integration examples (monitoring, ticketing, CMMS)
 
 ## Tracking
 

@@ -21,24 +21,23 @@
 
 | Field                  | Value                                      |
 |------------------------|--------------------------------------------|
-| **Cycle Number**       | `2`                                        |
-| **Current Phase**      | `complete — v0.2.0 released`               |
-| **Active Role**        | `Orchestrator`                             |
-| **Status**             | `DONE`                                     |
-| **Confidence**         | `0.95`                                     |
-| **Last Commit**        | `v0.2.0: полный цикл 10 итераций`          |
-| **Last Updated**       | `2026-06-25`                               |
+| **Cycle Number**       | `3`                                        |
+| **Current Phase**      | `P1-08: Industry best-practice fault catalogs` |
+| **Active Role**        | `Orchestrator / Implementer`               |
+| **Status**             | `In Progress`                              |
+| **Confidence**         | `0.85`                                     |
+| **Last Updated**       | `2026-06-29`                               |
 
 ## Project Summary
 
 Production-ready local classification service:
 
-- **4 catalogs:** servers (28), network (25), automotive (14), industrial (14)
+- **4 высококачественных каталога** (servers ~50+, network ~50+, automotive 15+, industrial 15+) — построены по FMEA/ITIL/CMMS (всего >130 записей)
 - **Hybrid scorer:** Jaccard keyword + rapidfuzz fuzzy + trigram overlap
 - **API:** classify, catalogs, faults, history, config, admin CRUD
 - **CLI:** classify, serve, history, add-fault
 - **Infrastructure:** Docker multi-stage, docker-compose, Makefile, CI
-- **Tests:** 39 passing, 92% coverage, performance benchmark < 100ms
+- **Tests:** 48+ passing, 92%+ coverage, новые тесты качества каталогов, performance benchmark < 100ms
 - **Docs:** README, USAGE, ARCHITECTURE, DEPLOYMENT, CHANGELOG
 
 ## Cycle History
