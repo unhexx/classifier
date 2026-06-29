@@ -54,7 +54,7 @@ class Settings(BaseSettings):
 
     # --- Сервер ---
     app_title: str = "Unhexx Classifier"
-    app_version: str = "0.3.0"
+    app_version: str = "1.0.0"
     app_description: str = (
         "Унифицированный сервис классификации с предварительной очисткой контекста "
         "от персональных данных локальной CPU-моделью. "
