@@ -24,6 +24,7 @@ def run_migrations() -> None:
     migrations: list[tuple[str, str, str]] = [
         ("classification_logs", "original_context", "TEXT"),
         ("classification_logs", "pd_entities_json", "TEXT"),
+        ("faults", "failure_mode", "TEXT"),
     ]
 
     with engine.begin() as conn:
