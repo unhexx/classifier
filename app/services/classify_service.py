@@ -44,6 +44,7 @@ def classify_context(db: Session, request: ClassifyRequest) -> ClassifyResponse:
         scoring_time_ms=result.processing_time_ms,
         pd_cleaning_time_ms=pd_time_ms,
         scoring_weights=result.scoring_weights,
+        profile_used=result.profile_used,
         typical_malfunction=typical,
         presumed_typical_malfunction=request.presumed_typical_malfunction,
     )

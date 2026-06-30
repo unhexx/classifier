@@ -39,6 +39,7 @@ def cmd_classify(args: argparse.Namespace) -> None:
         top_k=args.top_k,
         min_confidence=args.min_conf,
         include_scoring_details=args.details,
+        profile=getattr(args, "profile", None),
     )
     with SessionLocal() as db:
         result = classify_context(db, req)
@@ -86,6 +87,54 @@ def cmd_add_fault(args: argparse.Namespace) -> None:
     print(json.dumps({"status": "created", "code": fault.code}, ensure_ascii=False))
 
 
+def cmd_eval(args: argparse.Namespace) -> None:
+    from pathlib import Path
+
+    from app.services.eval_service import run_eval_cli
+
+    run_eval_cli(
+        dataset_path=Path(args.dataset),
+        catalog=args.catalog,
+        top_k=args.top_k,
+        output_path=Path(args.output),
+    )
+
+
+def cmd_profile_list(args: argparse.Namespace) -> None:
+    from rich.console import Console
+    from rich.table import Table
+    from app.db.session import SessionLocal
+    from app.db.models import ScoringProfile
+
+    _ensure_data_loaded()
+    console = Console()
+    with SessionLocal() as db:
+        profiles = db.query(ScoringProfile).filter(ScoringProfile.is_active == True).all()
+
+        table = Table(title="Scoring Profiles")
+        table.add_column("Name", style="cyan", no_wrap=True)
+        table.add_column("Catalog", style="magenta")
+        table.add_column("w_keyword", justify="right")
+        table.add_column("w_fuzzy", justify="right")
+        table.add_column("w_trigram", justify="right")
+        table.add_column("w_embedding", justify="right")
+        table.add_column("prune_k", justify="right")
+        table.add_column("Description", style="green")
+
+        for p in profiles:
+            table.add_row(
+                p.name,
+                p.catalog or "-",
+                f"{p.weight_keyword:.2f}",
+                f"{p.weight_fuzzy:.2f}",
+                f"{p.weight_trigram:.2f}",
+                f"{p.weight_embedding:.2f}",
+                str(p.prune_k),
+                p.description or "-",
+            )
+        console.print(table)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="unhexx-classifier",
@@ -99,6 +148,7 @@ def main() -> None:
     p_class.add_argument("--top", "-k", type=int, default=None, dest="top_k")
     p_class.add_argument("--min-conf", type=float, default=None, dest="min_conf")
     p_class.add_argument("--details", action="store_true", help="Показать детали скоринга")
+    p_class.add_argument("--profile", "-p", default=None, help="Использовать именованный профиль весов")
     p_class.set_defaults(func=cmd_classify)
 
     p_serve = subparsers.add_parser("serve", help="Запустить HTTP-сервис")
@@ -121,6 +171,18 @@ def main() -> None:
     p_add.add_argument("--category", default=None)
     p_add.add_argument("--actions", default="", help="Рекомендации через |")
     p_add.set_defaults(func=cmd_add_fault)
+
+    p_eval = subparsers.add_parser("eval", help="Оценить качество классификации на размеченном датасете")
+    p_eval.add_argument("dataset", help="Путь к файлу размеченного датасета (.jsonl)")
+    p_eval.add_argument("--catalog", "-c", default="servers", help="Каталог по умолчанию")
+    p_eval.add_argument("--top", "-k", type=int, default=5, dest="top_k", help="Ограничение Top K")
+    p_eval.add_argument("--output", "-o", default="eval_report.md", help="Путь к итоговому отчёту")
+    p_eval.set_defaults(func=cmd_eval)
+
+    p_profile = subparsers.add_parser("profile", help="Управление профилями весов")
+    p_profile_sub = p_profile.add_subparsers(dest="profile_command", required=True)
+    p_profile_list = p_profile_sub.add_parser("list", help="Показать список профилей весов")
+    p_profile_list.set_defaults(func=cmd_profile_list)
 
     args = parser.parse_args()
     args.func(args)

@@ -11,9 +11,10 @@
 Результат — уверенность в диапазоне [0, 1].
 """
 
+import logging
 import time
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 from rapidfuzz import fuzz
@@ -21,6 +22,8 @@ from rapidfuzz import fuzz
 from app.core.catalog import CatalogIndex, FaultRecord, catalog_registry
 from app.core.config import settings
 from app.core.models import ClassifyRequest, ClassifyResponse, FaultMatch, ScoringWeights
+
+logger = logging.getLogger(__name__)
 
 
 def _normalize(text: str) -> str:
@@ -73,6 +76,7 @@ class HybridScorer:
         self.w_fz = weights.fuzzy if weights and weights.fuzzy is not None else (0.0 if weights else settings.weight_fuzzy)
         self.w_tri = weights.trigram if weights and weights.trigram is not None else (0.0 if weights else settings.weight_trigram)
         self.w_emb = weights.embedding if weights and weights.embedding is not None else (0.0 if weights else settings.weight_embedding)
+        self.prune_k = settings.embedding_prune_k
 
         total = self.w_kw + self.w_fz + self.w_tri + self.w_emb
         if total > 0:
@@ -80,6 +84,37 @@ class HybridScorer:
             self.w_fz /= total
             self.w_tri /= total
             self.w_emb /= total
+
+    def load_profile(self, profile_name: str) -> bool:
+        """Загрузка весов скоринга из таблицы scoring_profiles (TASK-013)."""
+        from app.db.session import SessionLocal
+        from app.db.models import ScoringProfile
+
+        with SessionLocal() as db:
+            profile = db.query(ScoringProfile).filter(
+                ScoringProfile.name == profile_name,
+                ScoringProfile.is_active == True
+            ).first()
+
+            if not profile:
+                logger.warning(f"Профиль скоринга '{profile_name}' не найден или неактивен.")
+                return False
+
+            self.w_kw = profile.weight_keyword
+            self.w_fz = profile.weight_fuzzy
+            self.w_tri = profile.weight_trigram
+            self.w_emb = profile.weight_embedding
+            self.prune_k = profile.prune_k
+
+            total = self.w_kw + self.w_fz + self.w_tri + self.w_emb
+            if total > 0:
+                self.w_kw /= total
+                self.w_fz /= total
+                self.w_tri /= total
+                self.w_emb /= total
+
+            logger.info(f"Успешно загружен профиль весов: {profile_name} (kw={self.w_kw:.2f}, fz={self.w_fz:.2f}, tri={self.w_tri:.2f}, emb={self.w_emb:.2f})")
+            return True
 
     @property
     def weight_dict(self) -> dict[str, float]:
@@ -176,6 +211,11 @@ class ClassifierEngine:
             )
 
         scorer = HybridScorer(request.weights)
+        profile_used = None
+        if request.profile:
+            if scorer.load_profile(request.profile):
+                profile_used = request.profile
+
         top_k = request.top_k or settings.default_top_k
         min_conf = request.min_confidence or settings.default_min_confidence
 
@@ -209,7 +249,7 @@ class ClassifierEngine:
             })
 
         # Сортируем по fast_score и берем top_k (prune_k)
-        prune_k = getattr(settings, "embedding_prune_k", 40)
+        prune_k = scorer.prune_k
         candidates.sort(key=lambda x: x["fast_score"], reverse=True)
 
         scored: list[ScoredFault] = []
@@ -276,6 +316,7 @@ class ClassifierEngine:
             total_candidates=len(index.faults),
             processing_time_ms=round(elapsed, 2),
             scoring_weights=scorer.weight_dict if request.include_scoring_details else None,
+            profile_used=profile_used,
             typical_malfunction=matches[0].title if matches else None,
             presumed_typical_malfunction=request.presumed_typical_malfunction,
         )

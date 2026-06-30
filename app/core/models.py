@@ -51,6 +51,7 @@ class ClassifyRequest(BaseModel):
         None, ge=0.0, le=1.0, description="Минимальная уверенность для включения в результат"
     )
     weights: ScoringWeights | None = Field(None, description="Переопределение весов скорера")
+    profile: str | None = Field(None, description="Наименование профиля весов")
     include_scoring_details: bool = Field(
         False, description="Включить детали скоринга в ответ (для отладки)"
     )
@@ -135,6 +136,7 @@ class ClassifyResponse(BaseModel):
     scoring_time_ms: float | None = None
     pd_cleaning_time_ms: float | None = None
     scoring_weights: dict[str, float] | None = None
+    profile_used: str | None = Field(None, description="Использованный профиль весов")
     typical_malfunction: str | None = Field(None, description="Определённая типовая неисправность (по классификатору)")
     presumed_typical_malfunction: str | None = Field(None, description="Предполагаемая типовая неисправность")
 

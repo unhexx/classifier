@@ -83,6 +83,43 @@ def import_catalog(db: Session, catalog_data: dict[str, Any]) -> int:
     return count
 
 
+def ensure_scoring_profiles_loaded(db: Session) -> None:
+    """Идемпотентный сид для ScoringProfile (TASK-013)."""
+    from app.db.models import ScoringProfile
+
+    # Seed default profile
+    default_profile = db.query(ScoringProfile).filter(ScoringProfile.name == "default").first()
+    if default_profile is None:
+        default_profile = ScoringProfile(
+            name="default",
+            catalog=None,
+            weight_keyword=0.30,
+            weight_fuzzy=0.25,
+            weight_trigram=0.15,
+            weight_embedding=0.30,
+            prune_k=40,
+            description="Default production profile",
+        )
+        db.add(default_profile)
+
+    # Example tuned profile for servers
+    servers_profile = db.query(ScoringProfile).filter(ScoringProfile.name == "servers_v1").first()
+    if servers_profile is None:
+        servers_profile = ScoringProfile(
+            name="servers_v1",
+            catalog="servers",
+            weight_keyword=0.25,
+            weight_fuzzy=0.20,
+            weight_trigram=0.10,
+            weight_embedding=0.45,
+            prune_k=35,
+            description="Tuned for server faults after Phase 1",
+        )
+        db.add(servers_profile)
+
+    db.commit()
+
+
 def ensure_catalogs_loaded(db: Session, force: bool = False) -> dict[str, int]:
     """
     Загружает все JSON из settings.seed_dir.
@@ -109,5 +146,10 @@ def ensure_catalogs_loaded(db: Session, force: bool = False) -> dict[str, int]:
             results[data["name"]] = added
         except Exception as exc:  # noqa: BLE001
             print(f"Ошибка загрузки сида {json_path.name}: {exc}")
+
+    try:
+        ensure_scoring_profiles_loaded(db)
+    except Exception as exc:
+        print(f"Ошибка загрузки профилей: {exc}")
 
     return results

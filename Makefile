@@ -12,6 +12,13 @@ install:
 test:
 	pytest --cov=app --cov-report=term-missing
 
+test-regression:
+	@echo "Running regression guards (TASK-014)..."
+	pytest tests/test_regression.py -xvs
+
+test-all:
+	pytest tests/ --tb=short
+
 lint:
 	ruff check app tests
 	ruff format --check app tests

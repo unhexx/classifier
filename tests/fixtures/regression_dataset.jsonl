@@ -1,0 +1,6 @@
+{"context": "сервер не включается красный индикатор PSU", "correct_fault_code": "SRV-PSU-001", "catalog": "servers"}
+{"context": "процессор перегревается до 95 градусов", "correct_fault_code": "SRV-CPU-001", "catalog": "servers"}
+{"context": "диск не определяется в BIOS", "correct_fault_code": "SRV-DISK-001", "catalog": "servers"}
+{"context": "память ECC ошибки", "correct_fault_code": "SRV-MEM-001", "catalog": "servers"}
+{"context": "link down port down", "correct_fault_code": "NET-LINK-001", "catalog": "network"}
+{"context": "stp loop broadcast storm", "correct_fault_code": "NET-STP-001", "catalog": "network"}

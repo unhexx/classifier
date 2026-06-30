@@ -140,3 +140,33 @@ class LearnedPdPattern(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class ScoringProfile(Base):
+    """Профиль весов для калибровки гибридного скоринга."""
+
+    __tablename__ = "scoring_profiles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    catalog: Mapped[str | None] = mapped_column(String(32), nullable=True)  # None = глобальный профиль
+
+    # Веса
+    weight_keyword: Mapped[float] = mapped_column(Float, default=0.30, nullable=False)
+    weight_fuzzy: Mapped[float] = mapped_column(Float, default=0.25, nullable=False)
+    weight_trigram: Mapped[float] = mapped_column(Float, default=0.15, nullable=False)
+    weight_embedding: Mapped[float] = mapped_column(Float, default=0.30, nullable=False)
+
+    prune_k: Mapped[int] = mapped_column(Integer, default=40, nullable=False)
+
+    description: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    meta: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)

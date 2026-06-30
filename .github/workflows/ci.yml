@@ -29,5 +29,8 @@ jobs:
           pip install ruff
           ruff check app tests
 
+      - name: Regression guards
+        run: make test-regression
+
       - name: Test
         run: pytest --cov=app --cov-report=term-missing
