@@ -29,6 +29,9 @@ except ImportError:
     HAS_ORT = False
 
 
+_MODEL_CACHE: Dict[str, Any] = {}
+
+
 class EmbeddingEngine:
     """
     CPU-friendly embedding engine with precomputation and pruning support.
@@ -62,19 +65,27 @@ class EmbeddingEngine:
             self._dim = 384
             return
 
+        cache_key = f"{self.model_name}_{self.device}_{self.use_onnx}"
+        if cache_key in _MODEL_CACHE:
+            self.model, self._dim = _MODEL_CACHE[cache_key]
+            logger.info(f"Using cached embedding model: {self.model_name}")
+            return
+
         try:
-            self.model = SentenceTransformer(
+            model = SentenceTransformer(
                 self.model_name,
                 device=self.device,
                 cache_folder=str(self.cache_dir),
             )
-            if self.use_onnx and hasattr(self.model, "to_onnx"):
+            if self.use_onnx and hasattr(model, "to_onnx"):
                 try:
-                    self.model = self.model.to_onnx()
+                    model = model.to_onnx()
                 except Exception as e:
                     logger.info(f"ONNX optimization skipped: {e}")
 
-            self._dim = self.model.get_sentence_embedding_dimension()
+            self._dim = model.get_sentence_embedding_dimension()
+            self.model = model
+            _MODEL_CACHE[cache_key] = (model, self._dim)
             logger.info(
                 f"Embedding model loaded: {self.model_name} "
                 f"(dim={self._dim}, device={self.device}, onnx={self.use_onnx})"
@@ -114,10 +125,6 @@ class EmbeddingEngine:
         text_key: str = "_search_text",
     ) -> None:
         """Precompute embeddings for the entire catalog. Called once at startup."""
-        self._precomputed.clear()
-        if not records:
-            return
-
         texts: List[str] = []
         ids: List[str] = []
 
@@ -134,7 +141,15 @@ class EmbeddingEngine:
                 texts.append(txt)
 
         if not texts:
+            self._precomputed.clear()
             return
+
+        current_texts_hash = hash(tuple(texts))
+        if hasattr(self, "_last_texts_hash") and self._last_texts_hash == current_texts_hash and self._precomputed:
+            logger.info("Catalog texts are unchanged; skipping embedding precomputation.")
+            return
+        self._last_texts_hash = current_texts_hash
+        self._precomputed.clear()
 
         if self.model is None:
             for rid in ids:

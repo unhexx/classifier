@@ -19,11 +19,12 @@ client = TestClient(app)
 
 
 def test_health():
+    from app.core.config import settings
     resp = client.get("/health")
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "ok"
-    assert data["version"] == "0.3.0"
+    assert data["version"] == settings.app_version
     assert data["pd_cleaning_enabled"] is True
     assert "servers" in data["catalogs"]
 

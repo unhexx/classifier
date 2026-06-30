@@ -69,10 +69,10 @@ class HybridScorer:
     """Гибридный скорер с настраиваемыми весами."""
 
     def __init__(self, weights: ScoringWeights | None = None) -> None:
-        self.w_kw = weights.keyword if weights and weights.keyword is not None else settings.weight_keyword
-        self.w_fz = weights.fuzzy if weights and weights.fuzzy is not None else settings.weight_fuzzy
-        self.w_tri = weights.trigram if weights and weights.trigram is not None else settings.weight_trigram
-        self.w_emb = weights.embedding if weights and weights.embedding is not None else settings.weight_embedding
+        self.w_kw = weights.keyword if weights and weights.keyword is not None else (0.0 if weights else settings.weight_keyword)
+        self.w_fz = weights.fuzzy if weights and weights.fuzzy is not None else (0.0 if weights else settings.weight_fuzzy)
+        self.w_tri = weights.trigram if weights and weights.trigram is not None else (0.0 if weights else settings.weight_trigram)
+        self.w_emb = weights.embedding if weights and weights.embedding is not None else (0.0 if weights else settings.weight_embedding)
 
         total = self.w_kw + self.w_fz + self.w_tri + self.w_emb
         if total > 0:
@@ -179,11 +179,76 @@ class ClassifierEngine:
         top_k = request.top_k or settings.default_top_k
         min_conf = request.min_confidence or settings.default_min_confidence
 
-        scored: list[ScoredFault] = []
+        emb_engine = catalog_registry.get_embedding_engine()
+        ctx_emb = None
+        if emb_engine and settings.enable_embeddings and scorer.w_emb > 0.01:
+            ctx_emb = emb_engine.encode_text(context_text)
+
+        ctx_tokens = _token_set(context_text)
+        candidates = []
         for fault in index.faults:
-            conf, reasons = scorer.score(context_text, fault)
-            if conf >= min_conf:
-                scored.append(ScoredFault(fault=fault, score=conf, reasons=reasons))
+            kw = _jaccard(ctx_tokens, _token_set(fault._search_text))
+
+            fz_title = fuzz.partial_ratio(context_text, fault.title) / 100.0
+            fz_desc = fuzz.partial_ratio(context_text, fault.description) / 100.0
+            fz_sym = max(
+                (fuzz.partial_ratio(context_text, s) / 100.0 for s in fault.symptoms), default=0.0
+            )
+            fz = max(fz_title, fz_desc, fz_sym)
+
+            tri = _trigram_overlap(context_text, fault._search_text)
+
+            # Простая комбинация быстрых сигналов для pruning (как в TASK-012)
+            fast_score = 0.4 * kw + 0.4 * fz + 0.2 * tri
+            candidates.append({
+                "fault": fault,
+                "kw": kw,
+                "fz": fz,
+                "tri": tri,
+                "fast_score": fast_score
+            })
+
+        # Сортируем по fast_score и берем top_k (prune_k)
+        prune_k = getattr(settings, "embedding_prune_k", 40)
+        candidates.sort(key=lambda x: x["fast_score"], reverse=True)
+
+        scored: list[ScoredFault] = []
+        for idx_c, cand in enumerate(candidates):
+            fault = cand["fault"]
+            emb_score = 0.0
+
+            if idx_c < prune_k:
+                if ctx_emb is not None:
+                    # Реальные эмбеддинги
+                    fault_emb = emb_engine.get_precomputed(fault.code)
+                    if fault_emb is not None:
+                        emb_score = float(np.dot(ctx_emb, fault_emb))
+                elif scorer.w_emb > 0.01:
+                    # Фолбек на простую векторную модель
+                    emb_score = scorer._simple_embedding_score(context_text, fault)
+
+            # Итоговый взвешенный скор
+            final = (
+                scorer.w_kw * cand["kw"]
+                + scorer.w_fz * cand["fz"]
+                + scorer.w_tri * cand["tri"]
+                + scorer.w_emb * emb_score
+            )
+            # Масштабирование уверенности
+            final = min(1.0, final * 1.15)
+
+            reasons: list[str] = []
+            if cand["kw"] > 0.15:
+                reasons.append(f"keyword:jaccard={cand['kw']:.2f}")
+            if cand["fz"] > 0.55:
+                reasons.append(f"fuzzy={cand['fz']:.2f}")
+            if cand["tri"] > 0.12:
+                reasons.append(f"trigram={cand['tri']:.2f}")
+            if emb_score > 0.4:
+                reasons.append(f"embedding={emb_score:.2f}")
+
+            if final >= min_conf:
+                scored.append(ScoredFault(fault=fault, score=round(final, 4), reasons=reasons))
 
         scored.sort(key=lambda x: x.score, reverse=True)
         top = scored[:top_k]

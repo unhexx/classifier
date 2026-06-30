@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     embedding_enabled: bool = True
     embedding_model_name: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     embedding_use_onnx: bool = True
+    embedding_prune_k: int = 40
 
     # --- Аудит ---
     enable_classification_logging: bool = True
