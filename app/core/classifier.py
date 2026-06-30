@@ -233,5 +233,8 @@ class ClassifierEngine:
             for f in idx.faults
         ]
 
+    def get_embedding_engine(self) -> Optional[Any]:
+        return catalog_registry.get_embedding_engine()
+
 
 engine = ClassifierEngine()

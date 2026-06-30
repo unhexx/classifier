@@ -37,10 +37,12 @@ class Settings(BaseSettings):
     weight_keyword: float = 0.35
     weight_fuzzy: float = 0.40
     weight_trigram: float = 0.25
-    weight_embedding: float = 0.0
+    weight_embedding: float = 0.20
 
-    enable_embeddings: bool = False
-    embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
+    enable_embeddings: bool = True
+    embedding_enabled: bool = True
+    embedding_model_name: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    embedding_use_onnx: bool = True
 
     # --- Аудит ---
     enable_classification_logging: bool = True

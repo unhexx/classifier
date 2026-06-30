@@ -53,15 +53,23 @@ class CatalogRegistry:
 
     def __init__(self) -> None:
         self._catalogs: dict[str, CatalogIndex] = {}
+        self.embedding_engine: Optional[Any] = None
+        self._embeddings_precomputed: bool = False
 
     def load_from_db(self, db) -> None:
         """Загружает все каталоги и строит индексы."""
         from sqlalchemy.orm import Session
+        import logging
+        from app.core.config import settings
+        from app.core.embeddings import create_embedding_engine_from_settings
+
+        logger = logging.getLogger(__name__)
 
         if not isinstance(db, Session):
             db = next(db) if callable(db) else db
 
         self._catalogs.clear()
+        self._embeddings_precomputed = False
 
         from app.db.models import Catalog
         from app.db.models import Fault as FaultORM
@@ -91,6 +99,20 @@ class CatalogRegistry:
             )
             self._catalogs[cat.name] = index
 
+        # TASK-011: Initialize and precompute embeddings
+        try:
+            if settings.enable_embeddings:
+                self.embedding_engine = create_embedding_engine_from_settings(settings)
+                all_records = []
+                for idx in self._catalogs.values():
+                    all_records.extend(idx.faults)
+                if all_records:
+                    self.embedding_engine.precompute_catalog(all_records)
+                    self._embeddings_precomputed = True
+                    logger.info("Embedding precomputation completed for all catalogs")
+        except Exception as e:
+            logger.warning(f"Embedding initialization skipped or failed: {e}")
+
     def get(self, name: str) -> CatalogIndex | None:
         return self._catalogs.get(name.lower())
 
@@ -107,6 +129,13 @@ class CatalogRegistry:
     @property
     def names(self) -> list[str]:
         return list(self._catalogs.keys())
+
+    def get_embedding_engine(self) -> Optional[Any]:
+        return self.embedding_engine
+
+    @property
+    def embeddings_ready(self) -> bool:
+        return self._embeddings_precomputed and self.embedding_engine is not None
 
 
 # Глобальный экземпляр (инициализируется в lifespan)
