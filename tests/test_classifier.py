@@ -92,6 +92,29 @@ def test_classify_basic_match():
     assert top.confidence > 0.4
 
 
+def test_include_scoring_details_hides_reasons():
+    req_with = ClassifyRequest(
+        catalog="servers",
+        context="диск не виден sata raid bios не определяется",
+        top_k=1,
+        include_scoring_details=True,
+    )
+    req_without = ClassifyRequest(
+        catalog="servers",
+        context="диск не виден sata raid bios не определяется",
+        top_k=1,
+        include_scoring_details=False,
+    )
+    resp_with = engine.classify(req_with)
+    resp_without = engine.classify(req_without)
+
+    assert len(resp_with.matches) >= 1
+    assert len(resp_without.matches) >= 1
+    assert len(resp_with.matches[0].matched_reasons) > 0
+    assert resp_without.matches[0].matched_reasons == []
+    assert resp_without.scoring_weights is None
+
+
 def test_classify_unknown_catalog():
     req = ClassifyRequest(catalog="nonexistent", context="какая-то проблема")
     resp = engine.classify(req)

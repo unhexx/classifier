@@ -109,7 +109,7 @@ def cmd_profile_list(args: argparse.Namespace) -> None:
     _ensure_data_loaded()
     console = Console()
     with SessionLocal() as db:
-        profiles = db.query(ScoringProfile).filter(ScoringProfile.is_active == True).all()
+        profiles = db.query(ScoringProfile).filter(ScoringProfile.is_active.is_(True)).all()
 
         table = Table(title="Scoring Profiles")
         table.add_column("Name", style="cyan", no_wrap=True)

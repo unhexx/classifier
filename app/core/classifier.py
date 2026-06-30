@@ -93,7 +93,7 @@ class HybridScorer:
         with SessionLocal() as db:
             profile = db.query(ScoringProfile).filter(
                 ScoringProfile.name == profile_name,
-                ScoringProfile.is_active == True
+                ScoringProfile.is_active.is_(True),
             ).first()
 
             if not profile:
@@ -301,7 +301,7 @@ class ClassifierEngine:
                 category=s.fault.category,
                 failure_mode=s.fault.failure_mode,
                 confidence=s.score,
-                matched_reasons=s.reasons if request.include_scoring_details else s.reasons,
+                matched_reasons=s.reasons if request.include_scoring_details else [],
                 recommended_actions=s.fault.recommended_actions,
             )
             for s in top

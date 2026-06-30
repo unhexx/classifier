@@ -57,11 +57,28 @@ def load_labeled_dataset(path: Path) -> list[dict[str, Any]]:
     return data
 
 
+def _ensure_catalogs_ready() -> None:
+    """Гарантирует загрузку каталогов перед eval (идемпотентно)."""
+    from app.core.catalog import catalog_registry
+    from app.db.seeds import ensure_catalogs_loaded
+    from app.db.session import SessionLocal, init_db
+
+    if catalog_registry.names:
+        return
+
+    init_db()
+    with SessionLocal() as db:
+        ensure_catalogs_loaded(db)
+        catalog_registry.load_from_db(db)
+
+
 def run_baseline_eval(
     dataset: list[dict[str, Any]],
     top_k: int = 5,
     catalog: str | None = None,
 ) -> EvalReport:
+    _ensure_catalogs_ready()
+
     results: list[EvalResult] = []
     latencies: list[float] = []
     confusion: dict[tuple[str, str], int] = {}
@@ -188,16 +205,9 @@ def run_eval_cli(
     output_path: Path = Path("eval_report.md"),
 ) -> None:
     """Запускает baseline-оценку на размеченном датасете."""
-    from app.core.catalog import catalog_registry
-    from app.db.seeds import ensure_catalogs_loaded
-    from app.db.session import SessionLocal, init_db
-
     console.rule("[bold blue]unhexx-classifier eval[/bold blue]")
 
-    init_db()
-    with SessionLocal() as db:
-        ensure_catalogs_loaded(db)
-        catalog_registry.load_from_db(db)
+    _ensure_catalogs_ready()
 
     dataset_path = Path(dataset_path)
     if not dataset_path.exists():

@@ -83,7 +83,11 @@ class EmbeddingEngine:
                 except Exception as e:
                     logger.info(f"ONNX optimization skipped: {e}")
 
-            self._dim = model.get_sentence_embedding_dimension()
+            get_dim = getattr(model, "get_embedding_dimension", None)
+            if callable(get_dim):
+                self._dim = get_dim()
+            else:
+                self._dim = model.get_sentence_embedding_dimension()
             self.model = model
             _MODEL_CACHE[cache_key] = (model, self._dim)
             logger.info(

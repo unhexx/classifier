@@ -58,15 +58,11 @@ class CatalogRegistry:
 
     def load_from_db(self, db) -> None:
         """Загружает все каталоги и строит индексы."""
-        from sqlalchemy.orm import Session
         import logging
         from app.core.config import settings
         from app.core.embeddings import create_embedding_engine_from_settings
 
         logger = logging.getLogger(__name__)
-
-        if not isinstance(db, Session):
-            db = next(db) if callable(db) else db
 
         self._catalogs.clear()
         self._embeddings_precomputed = False
